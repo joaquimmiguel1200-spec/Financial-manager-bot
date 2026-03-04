@@ -8,8 +8,9 @@ import type { Transaction, ChatMessage } from '@/types';
 import { CATEGORY_ICONS, PAYMENT_METHOD_LABELS } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { reportService } from '@/services/reportService';
 import { 
-  LayoutDashboard, MessageCircle, Target, User, LogOut, Plus, Trash2, Send, ArrowUpCircle, ArrowDownCircle
+  LayoutDashboard, MessageCircle, Target, User, LogOut, Plus, Trash2, Send, ArrowUpCircle, ArrowDownCircle, Download, FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { securityService } from '@/services/securityService';
@@ -392,6 +393,19 @@ function GoalsTab() {
 function ProfileTab() {
   const session = authService.getSession();
   const sub = subscriptionService.getSubscription();
+  const { transactions, goals } = useFinancialData();
+
+  const handleExportCSV = () => {
+    if (!subscriptionService.canExport()) { toast.error('Exportação disponível apenas no plano Pro!'); return; }
+    reportService.exportCSV(transactions);
+    toast.success('CSV exportado com sucesso!');
+  };
+
+  const handleExportReport = () => {
+    if (!subscriptionService.canExport()) { toast.error('Exportação disponível apenas no plano Pro!'); return; }
+    reportService.exportReport(transactions, goals);
+    toast.success('Relatório exportado com sucesso!');
+  };
 
   return (
     <div className="p-4 space-y-4">
@@ -428,6 +442,22 @@ function ProfileTab() {
         )}
       </div>
 
+      {/* Export section */}
+      <div className="rounded-xl bg-card border border-border p-4 space-y-3">
+        <h3 className="font-display font-semibold text-sm">📥 Exportar Dados</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <Button size="sm" variant="outline" onClick={handleExportCSV} className="text-xs">
+            <Download className="w-3 h-3 mr-1" /> CSV (Excel)
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleExportReport} className="text-xs">
+            <FileText className="w-3 h-3 mr-1" /> Relatório TXT
+          </Button>
+        </div>
+        {!subscriptionService.isPro() && (
+          <p className="text-[10px] text-muted-foreground">🔒 Disponível apenas no plano Pro</p>
+        )}
+      </div>
+
       <div className="rounded-xl bg-card border border-border p-4">
         <h3 className="font-display font-semibold text-sm mb-3">🔒 Segurança</h3>
         <ul className="space-y-2 text-xs text-muted-foreground">
@@ -436,6 +466,29 @@ function ProfileTab() {
           <li>✅ Proteção contra XSS</li>
           <li>✅ Rate limiting de login</li>
         </ul>
+      </div>
+
+      <div className="rounded-xl bg-card border border-border p-4">
+        <h3 className="font-display font-semibold text-sm mb-3 text-destructive">⚠️ Zona de Perigo</h3>
+        <p className="text-xs text-muted-foreground mb-3">Excluir conta apaga todos os seus dados permanentemente.</p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs"
+          onClick={async () => {
+            const pw = prompt('Digite sua senha para confirmar:');
+            if (!pw) return;
+            const result = await authService.deleteAccount(pw);
+            if (result.success) {
+              toast.success(result.message);
+              window.location.href = '/';
+            } else {
+              toast.error(result.message);
+            }
+          }}
+        >
+          Excluir Conta
+        </Button>
       </div>
     </div>
   );
