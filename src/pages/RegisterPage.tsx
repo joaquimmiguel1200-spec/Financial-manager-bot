@@ -53,6 +53,11 @@ export default function RegisterPage() {
               <Label htmlFor="password">Senha</Label>
               <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Mín. 6 chars, 1 maiúscula, 1 número" />
             </div>
+            <p className="text-[11px] text-muted-foreground text-center">
+              Ao criar sua conta, você concorda com nossos{' '}
+              <Link to="/terms" className="text-primary underline">Termos de Uso</Link> e{' '}
+              <Link to="/privacy" className="text-primary underline">Política de Privacidade</Link>.
+            </p>
             <Button type="submit" className="w-full bg-gradient-hero text-primary-foreground hover:opacity-90" disabled={loading}>
               {loading ? 'Criando...' : 'Criar conta grátis'}
             </Button>
