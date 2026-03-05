@@ -73,8 +73,13 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 px-4 border-t border-border text-center text-xs text-muted-foreground">
-        <p>© 2025 FinançasIA 2.0 — Gestão Inteligente de Finanças Pessoais</p>
+      <footer className="py-8 px-4 border-t border-border text-center text-xs text-muted-foreground space-y-2">
+        <p>© 2026 FinançasIA 2.0 — Gestão Inteligente de Finanças Pessoais</p>
+        <div className="flex items-center justify-center gap-4">
+          <Link to="/terms" className="hover:text-primary transition-colors">Termos de Uso</Link>
+          <span>•</span>
+          <Link to="/privacy" className="hover:text-primary transition-colors">Política de Privacidade</Link>
+        </div>
       </footer>
     </div>
   );
