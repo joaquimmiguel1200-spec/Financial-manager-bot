@@ -392,6 +392,7 @@ function GoalsTab() {
 
 function ProfileTab() {
   const session = authService.getSession();
+  const [, forceUpdate] = useState(0);
   const sub = subscriptionService.getSubscription();
   const { transactions, goals } = useFinancialData();
 
@@ -434,7 +435,7 @@ function ProfileTab() {
             <Button
               size="sm"
               className="w-full bg-gradient-hero text-primary-foreground hover:opacity-90"
-              onClick={() => { subscriptionService.subscribe('pro_monthly'); toast.success('Plano Pro ativado! 7 dias grátis.'); }}
+              onClick={() => { subscriptionService.subscribe('pro_monthly'); toast.success('Plano Pro ativado! 7 dias grátis.'); forceUpdate(n => n + 1); }}
             >
               Fazer Upgrade para Pro
             </Button>

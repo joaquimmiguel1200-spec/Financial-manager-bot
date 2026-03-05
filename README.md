@@ -1,73 +1,145 @@
-# Welcome to your Lovable project
+# 💰 FinançasIA 2.0
 
-## Project info
+**Gestão Inteligente de Finanças Pessoais com IA**
 
-**URL**: (https://sunbeam-forge-lab.lovable.app)
+**URL**: https://sunbeam-forge-lab.lovable.app
+
+## 📋 Sobre
+
+FinançasIA é um app de gestão financeira pessoal com inteligência artificial integrada. Registre gastos por conversa, controle parcelas automaticamente, acompanhe metas e exporte relatórios — tudo no seu bolso.
+
+## 🚀 Funcionalidades
+
+### Core
+- 📊 **Dashboard** com saldo, receitas, despesas e gráficos por categoria
+- 💬 **Chat IA** para registro de transações por linguagem natural
+- 💸 **Extrato** com adição manual de receitas e despesas
+- 🎯 **Metas Financeiras** com acompanhamento de progresso
+- 👤 **Perfil** com gestão de plano e exportação de dados
+
+### Chat IA
+- Parsing de linguagem natural: "Comprei um tênis de R$ 400 no cartão em 4x"
+- Detecção automática de: valor, categoria, método de pagamento, parcelamento
+- Registro automático de parcelas mensais
+
+### Exportação (Pro)
+- 📥 CSV para Excel
+- 📄 Relatório TXT completo com resumo por categoria e método
+
+### Planos
+- **Grátis**: 30 transações/mês, 5 chats/dia, 1 meta
+- **Pro Mensal**: R$ 9,90/mês — Ilimitado
+- **Pro Anual**: R$ 7,90/mês — Ilimitado
+
+### Segurança
+- Criptografia SHA-256 para senhas
+- Dados isolados por usuário
+- Proteção contra XSS (sanitização de inputs)
+- Rate limiting de login
+
+## 🛠️ Stack Tecnológica
+
+- **Framework**: React 18 + TypeScript
+- **Build**: Vite 5
+- **Estilo**: Tailwind CSS + shadcn/ui
+- **Mobile Nativo**: Capacitor (Android/iOS)
+- **PWA**: Service Worker + manifest.json
+- **Persistência**: localStorage (offline-first)
+
+## 📱 App Nativo (Play Store)
+
+Este projeto usa **Capacitor** para gerar um APK/AAB nativo para publicação na Google Play Store.
+
+### Requisitos
+- Node.js 18+
+- Android Studio (para Android)
+- Xcode (para iOS, somente macOS)
+
+### Setup local
+
+```bash
+# 1. Clone o repositório
+git clone <repo-url>
+cd <repo>
+
+# 2. Instale dependências
+npm install
+
+# 3. Adicione plataforma Android
+npx cap add android
+
+# 4. Build do projeto web
+npm run build
+
+# 5. Sincronize com o nativo
+npx cap sync
+
+# 6. Abra no Android Studio
+npx cap open android
+
+# 7. Rode no emulador ou dispositivo
+npx cap run android
+```
+
+### Gerar APK/AAB para Play Store
+
+1. Abra o projeto no Android Studio (`npx cap open android`)
+2. Vá em **Build > Generate Signed Bundle / APK**
+3. Crie ou selecione sua keystore
+4. Selecione **Android App Bundle (AAB)** para Play Store
+5. Faça upload no [Google Play Console](https://play.google.com/console)
+
+### Requisitos Play Store
+- ✅ Ícones em todas as resoluções (192x192, 512x512)
+- ✅ Ícones maskable para dispositivos com formatos adaptativos
+- ✅ Splash screen nativo configurado
+- ✅ Status bar com cor temática
+- ✅ Orientação portrait
+- ✅ PWA como fallback
+- ✅ Manifest completo
 
 ## How can I edit this code?
 
-There are several ways of editing your application.
-
 **Use Lovable**
 
-Simply visit the [Lovable Project](https://sunbeam-forge-lab.lovable.app)) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
+Simply visit the [Lovable Project](https://sunbeam-forge-lab.lovable.app) and start prompting.
 
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Clone this repo and push changes. Pushed changes will also be reflected in Lovable.
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
 npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🏗️ Arquitetura
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+src/
+├── components/
+│   ├── Landing/          # Landing page sections
+│   ├── SplashScreen.tsx  # Animação de inicialização
+│   └── ui/               # shadcn/ui components
+├── hooks/
+│   └── useFinancialData.ts  # Hook de dados financeiros
+├── pages/
+│   ├── AppPage.tsx       # App principal (tabs)
+│   ├── LoginPage.tsx     # Autenticação
+│   ├── RegisterPage.tsx  # Registro
+│   └── Index.tsx         # Redirecionamento
+├── services/
+│   ├── authService.ts        # Autenticação
+│   ├── chatAIService.ts      # Motor de IA (NLP)
+│   ├── reportService.ts      # Exportação CSV/TXT
+│   ├── securityService.ts    # Criptografia e segurança
+│   └── subscriptionService.ts # Gestão de planos
+└── types/
+    └── index.ts          # TypeScript types
+```
 
-**Use GitHub Codespaces**
+## 📄 Licença
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://sunbeam-forge-lab.lovable.app) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Projeto privado — Todos os direitos reservados.
