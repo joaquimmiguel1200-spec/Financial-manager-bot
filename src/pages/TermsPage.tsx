@@ -14,7 +14,7 @@ export default function TermsPage() {
         <span className="font-display font-bold text-primary-foreground">Termos de Uso</span>
       </header>
 
-      <main className="max-w-2xl mx-auto p-5 space-y-6 text-sm text-foreground/80 leading-relaxed">
+      <main className="max-w-2xl mx-auto px-4 py-5 space-y-6 text-sm text-foreground/80 leading-relaxed pb-10">
         <div className="text-center space-y-1">
           <h1 className="text-xl font-display font-bold text-foreground">Termos de Uso</h1>
           <p className="text-xs text-muted-foreground">Última atualização: 05 de março de 2026</p>
