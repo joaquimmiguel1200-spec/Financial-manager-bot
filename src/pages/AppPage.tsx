@@ -2,15 +2,17 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/services/authService';
 import { useFinancialData } from '@/hooks/useFinancialData';
+import { useTheme } from '@/hooks/useTheme';
 import { chatAIService } from '@/services/chatAIService';
 import { subscriptionService } from '@/services/subscriptionService';
-import type { Transaction, ChatMessage } from '@/types';
+import type { Transaction, ChatMessage, FixedEntry, PaymentMethod } from '@/types';
 import { CATEGORY_ICONS, PAYMENT_METHOD_LABELS } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { reportService } from '@/services/reportService';
 import { 
-  LayoutDashboard, MessageCircle, Target, User, LogOut, Plus, Trash2, Send, ArrowUpCircle, ArrowDownCircle, Download, FileText
+  LayoutDashboard, MessageCircle, Target, User, LogOut, Plus, Trash2, Send, ArrowUpCircle, ArrowDownCircle, Download, FileText, Moon, Sun, CalendarDays
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { securityService } from '@/services/securityService';
@@ -30,7 +32,6 @@ export default function AppPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
       <header className="bg-gradient-hero px-4 py-3 flex items-center justify-between">
         <span className="font-display font-bold text-primary-foreground">💰 FinançasIA 2.0</span>
         <button
@@ -41,7 +42,6 @@ export default function AppPage() {
         </button>
       </header>
 
-      {/* Content */}
       <main className="flex-1 overflow-auto pb-20">
         {tab === 'dashboard' && <DashboardTab />}
         {tab === 'transactions' && <TransactionsTab />}
@@ -50,14 +50,13 @@ export default function AppPage() {
         {tab === 'profile' && <ProfileTab />}
       </main>
 
-      {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around py-2 z-50">
         {([
-          { id: 'dashboard' as AppTab, icon: LayoutDashboard, label: '📊' },
-          { id: 'transactions' as AppTab, icon: ArrowDownCircle, label: '💸' },
-          { id: 'chat' as AppTab, icon: MessageCircle, label: '💬' },
-          { id: 'goals' as AppTab, icon: Target, label: '🎯' },
-          { id: 'profile' as AppTab, icon: User, label: '👤' },
+          { id: 'dashboard' as AppTab, label: '📊', name: 'Home' },
+          { id: 'transactions' as AppTab, label: '💸', name: 'Extrato' },
+          { id: 'chat' as AppTab, label: '💬', name: 'Chat' },
+          { id: 'goals' as AppTab, label: '🎯', name: 'Metas' },
+          { id: 'profile' as AppTab, label: '👤', name: 'Perfil' },
         ]).map(item => (
           <button
             key={item.id}
@@ -67,7 +66,7 @@ export default function AppPage() {
             }`}
           >
             <span className="text-lg">{item.label}</span>
-            <span className="text-[10px] mt-0.5 capitalize">{item.id === 'transactions' ? 'Extrato' : item.id === 'chat' ? 'Chat' : item.id === 'goals' ? 'Metas' : item.id === 'profile' ? 'Perfil' : 'Home'}</span>
+            <span className="text-[10px] mt-0.5">{item.name}</span>
           </button>
         ))}
       </nav>
@@ -84,7 +83,6 @@ function DashboardTab() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Balance card */}
       <div className="rounded-2xl bg-gradient-hero p-5 text-center">
         <p className="text-primary-foreground/70 text-sm">Saldo do Mês</p>
         <p className={`text-3xl font-bold font-display ${balance >= 0 ? 'text-primary-foreground' : 'text-destructive-foreground'}`}>
@@ -107,7 +105,6 @@ function DashboardTab() {
         </div>
       </div>
 
-      {/* Categories */}
       {sortedCategories.length > 0 && (
         <div className="rounded-xl bg-card border border-border p-4">
           <h3 className="font-display font-semibold mb-3 text-sm">Gastos por Categoria</h3>
@@ -130,7 +127,6 @@ function DashboardTab() {
         </div>
       )}
 
-      {/* Recent transactions */}
       <div className="rounded-xl bg-card border border-border p-4">
         <h3 className="font-display font-semibold mb-3 text-sm">Últimas Transações</h3>
         {monthTransactions.length === 0 ? (
@@ -390,11 +386,129 @@ function GoalsTab() {
   );
 }
 
+function FixedEntriesSection({ type }: { type: 'income' | 'expense' }) {
+  const user = authService.getCurrentUser();
+  const entries = type === 'income' ? (user?.fixedIncomes || []) : (user?.fixedExpenses || []);
+  const [, forceUpdate] = useState(0);
+  const [showForm, setShowForm] = useState(false);
+  const [desc, setDesc] = useState('');
+  const [amount, setAmount] = useState('');
+  const [day, setDay] = useState('1');
+  const [category, setCategory] = useState('Outros');
+  const [method, setMethod] = useState<PaymentMethod>('pix');
+  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const handleAdd = () => {
+    const val = parseFloat(amount.replace(',', '.'));
+    if (!desc || !val || !day) { toast.error('Preencha todos os campos'); return; }
+    const dayNum = parseInt(day);
+    if (dayNum < 1 || dayNum > 31) { toast.error('Dia inválido (1-31)'); return; }
+
+    const newEntry: FixedEntry = {
+      id: securityService.generateId(),
+      description: securityService.sanitizeInput(desc),
+      amount: val,
+      dayOfMonth: dayNum,
+      category,
+      paymentMethod: method,
+    };
+
+    const updated = [...entries, newEntry];
+    if (type === 'income') {
+      authService.updateFixedIncomes(updated);
+    } else {
+      authService.updateFixedExpenses(updated);
+    }
+    setDesc(''); setAmount(''); setDay('1'); setShowForm(false);
+    forceUpdate(n => n + 1);
+    toast.success(`${type === 'income' ? 'Receita' : 'Despesa'} fixa adicionada!`);
+  };
+
+  const handleDelete = (id: string) => {
+    const updated = entries.filter(e => e.id !== id);
+    if (type === 'income') {
+      authService.updateFixedIncomes(updated);
+    } else {
+      authService.updateFixedExpenses(updated);
+    }
+    forceUpdate(n => n + 1);
+    toast.success('Removido!');
+  };
+
+  const title = type === 'income' ? '💰 Receitas Fixas' : '📋 Despesas Fixas';
+  const categories = type === 'income'
+    ? ['Salário', 'Freelance', 'Investimentos', 'Outros']
+    : ['Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação', 'Lazer', 'Assinaturas', 'Outros'];
+
+  return (
+    <div className="rounded-xl bg-card border border-border p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-semibold text-sm">{title}</h3>
+        <Button size="sm" variant="ghost" onClick={() => setShowForm(!showForm)} className="h-7 w-7 p-0">
+          <Plus className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {showForm && (
+        <div className="space-y-2 p-3 rounded-lg bg-muted/50 animate-scale-in">
+          <Input placeholder="Descrição" value={desc} onChange={e => setDesc(e.target.value)} className="h-9 text-xs" />
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="Valor (R$)" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="h-9 text-xs" />
+            <div className="flex items-center gap-1">
+              <CalendarDays className="w-3 h-3 text-muted-foreground shrink-0" />
+              <Input placeholder="Dia" type="number" min="1" max="31" value={day} onChange={e => setDay(e.target.value)} className="h-9 text-xs" />
+            </div>
+          </div>
+          <select value={category} onChange={e => setCategory(e.target.value)} className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs">
+            {categories.map(c => <option key={c}>{c}</option>)}
+          </select>
+          <select value={method} onChange={e => setMethod(e.target.value as PaymentMethod)} className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs">
+            <option value="pix">Pix</option>
+            <option value="credito">Crédito</option>
+            <option value="debito">Débito</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="boleto">Boleto</option>
+          </select>
+          <Button size="sm" onClick={handleAdd} className="w-full h-8 text-xs bg-gradient-hero text-primary-foreground hover:opacity-90">
+            Adicionar
+          </Button>
+        </div>
+      )}
+
+      {entries.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-2">Nenhuma cadastrada</p>
+      ) : (
+        <div className="space-y-1.5">
+          {entries.map(e => (
+            <div key={e.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{e.description}</p>
+                <p className="text-muted-foreground text-[10px]">
+                  Dia {e.dayOfMonth} • {e.category} • {PAYMENT_METHOD_LABELS[e.paymentMethod || 'pix']}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`font-bold ${type === 'income' ? 'text-primary' : 'text-destructive'}`}>
+                  {fmt(e.amount)}
+                </span>
+                <button onClick={() => handleDelete(e.id)} className="text-muted-foreground hover:text-destructive">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProfileTab() {
   const session = authService.getSession();
   const [, forceUpdate] = useState(0);
   const sub = subscriptionService.getSubscription();
   const { transactions, goals } = useFinancialData();
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   const handleExportCSV = () => {
     if (!subscriptionService.canExport()) { toast.error('Exportação disponível apenas no plano Pro!'); return; }
@@ -410,6 +524,7 @@ function ProfileTab() {
 
   return (
     <div className="p-4 space-y-4">
+      {/* User info */}
       <div className="rounded-xl bg-card border border-border p-5 text-center">
         <div className="w-16 h-16 rounded-full bg-gradient-hero flex items-center justify-center text-2xl mx-auto mb-3">
           👤
@@ -422,6 +537,21 @@ function ProfileTab() {
         </div>
       </div>
 
+      {/* Dark mode toggle */}
+      <div className="rounded-xl bg-card border border-border p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {isDark ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-gold" />}
+            <div>
+              <p className="font-display font-semibold text-sm">Tema Escuro</p>
+              <p className="text-[10px] text-muted-foreground">Melhor experiência noturna</p>
+            </div>
+          </div>
+          <Switch checked={isDark} onCheckedChange={toggleTheme} />
+        </div>
+      </div>
+
+      {/* Plan */}
       <div className="rounded-xl bg-card border border-border p-4 space-y-3">
         <h3 className="font-display font-semibold text-sm">Plano Atual</h3>
         {subscriptionService.isPro() ? (
@@ -443,7 +573,11 @@ function ProfileTab() {
         )}
       </div>
 
-      {/* Export section */}
+      {/* Fixed entries */}
+      <FixedEntriesSection type="income" />
+      <FixedEntriesSection type="expense" />
+
+      {/* Export */}
       <div className="rounded-xl bg-card border border-border p-4 space-y-3">
         <h3 className="font-display font-semibold text-sm">📥 Exportar Dados</h3>
         <div className="grid grid-cols-2 gap-2">
@@ -459,6 +593,7 @@ function ProfileTab() {
         )}
       </div>
 
+      {/* Security */}
       <div className="rounded-xl bg-card border border-border p-4">
         <h3 className="font-display font-semibold text-sm mb-3">🔒 Segurança</h3>
         <ul className="space-y-2 text-xs text-muted-foreground">
@@ -469,6 +604,7 @@ function ProfileTab() {
         </ul>
       </div>
 
+      {/* Danger zone */}
       <div className="rounded-xl bg-card border border-border p-4">
         <h3 className="font-display font-semibold text-sm mb-3 text-destructive">⚠️ Zona de Perigo</h3>
         <p className="text-xs text-muted-foreground mb-3">Excluir conta apaga todos os seus dados permanentemente.</p>
