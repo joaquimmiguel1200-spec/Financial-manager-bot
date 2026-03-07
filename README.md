@@ -252,18 +252,74 @@ Entrada: "Comprei um notebook de R$ 4000 no cartão em 10x"
 
 ---
 
-## 🔒 Segurança
+## 🔒 Segurança (Enterprise-Grade)
 
-| Medida | Implementação | Detalhes |
-|--------|--------------|----------|
-| Hash de Senha | SHA-256 via Web Crypto API | Nunca armazenada em texto plano |
-| Sanitização XSS | `securityService.sanitizeInput()` | Todos os inputs do usuário |
-| Rate Limiting | 5 tentativas máx / 5 min bloqueio | Por email |
-| Isolamento | Dados segregados por `userId` | localStorage separado |
-| Validação de Senha | Mín. 6 chars, 1 maiúscula, 1 número | No registro e alteração |
-| Validação de Email | Regex de formato | No registro |
-| Token de Sessão | `crypto.getRandomValues` | 32 bytes hex |
-| Exclusão de Conta | Requer senha atual | Remove todos os dados |
+O FinançasIA 2.0 implementa **10 camadas de segurança** para proteção completa de ponta a ponta:
+
+### Camadas de Proteção
+
+| # | Camada | Implementação | Detalhes |
+|---|--------|--------------|----------|
+| 1 | **Hash de Senha** | PBKDF2 (100k iterações) + salt único | Migração automática de hashes legados SHA-256 |
+| 2 | **Sanitização XSS** | Allowlist estrito + escape de 8 caracteres perigosos | `< > " ' & \` \ /` → entidades HTML |
+| 3 | **Rate Limiting** | Backoff exponencial (3→30s, 5→5min, 8→30min, 10→1h) | Por email normalizado |
+| 4 | **Sessão Segura** | Token 256-bit + expiração 24h + fingerprint do browser | Validação em cada requisição |
+| 5 | **Integridade de Dados** | Checksum SHA-256 em dados persistidos | Detecção de tampering no localStorage |
+| 6 | **Token CSRF** | Token 192-bit por sessão via sessionStorage | Proteção contra cross-site request forgery |
+| 7 | **CSP (Content Security Policy)** | Meta tag com diretivas restritivas | `frame-ancestors 'none'`, `base-uri 'self'` |
+| 8 | **Comparação Constant-Time** | Prevenção de timing attacks na verificação | Todas as comparações de hash/token |
+| 9 | **Anti-Prototype-Pollution** | `safeJSONParse` remove `__proto__`, `constructor` | Parsing seguro de dados externos |
+| 10 | **Audit Log** | Log de eventos de segurança em memória | Login, registro, falhas, rate limiting |
+
+### Headers de Segurança (index.html)
+
+```html
+<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+<meta http-equiv="X-Frame-Options" content="DENY" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+```
+
+### Validação de Inputs
+
+| Campo | Regras |
+|-------|--------|
+| Email | RFC 5322 simplificado, máx. 254 chars |
+| Senha | 6-128 chars, 1 maiúscula, 1 número, verificação de senhas comuns |
+| Descrição | Máx. 500 chars, sanitização completa |
+| Valor | Numérico, > 0, ≤ 999.999.999, finito |
+| Nome | Mín. 2 chars, sanitizado |
+
+### Detalhes Técnicos do PBKDF2
+
+```typescript
+// Substitui SHA-256 simples por PBKDF2 com salt único
+Algoritmo: PBKDF2-HMAC-SHA256
+Iterações: 100.000
+Salt: 16 bytes (crypto.getRandomValues)
+Output: 32 bytes
+Formato: "pbkdf2:{iterations}:{salt_hex}:{hash_hex}"
+```
+
+### Anti-Enumeração
+
+- Mensagens de erro idênticas para "email não encontrado" e "senha incorreta"
+- Rate limiting aplicado mesmo para emails inexistentes
+- Normalização de email (lowercase + trim) antes de qualquer operação
+
+### Sessão e Autenticação
+
+```
+┌─ Login ─────────────────────────────────────┐
+│  1. Normaliza email (lowercase + trim)       │
+│  2. Verifica rate limiting (exponencial)     │
+│  3. Busca usuário                            │
+│  4. Verifica senha (PBKDF2 constant-time)    │
+│  5. Migra hash legado se necessário          │
+│  6. Cria sessão segura (token + fingerprint) │
+│  7. Gera CSRF token                          │
+│  8. Registra evento no audit log             │
+└──────────────────────────────────────────────┘
+```
 
 ---
 
