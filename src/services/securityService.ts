@@ -73,7 +73,7 @@ export const securityService = {
     if (parts.length !== 4) return false;
 
     const iterations = parseInt(parts[1]);
-    const salt = hexToBuffer(parts[2]);
+    const salt = hexToBuffer(parts[2]) as unknown as BufferSource;
     const expectedHash = parts[3];
 
     const encoder = new TextEncoder();
