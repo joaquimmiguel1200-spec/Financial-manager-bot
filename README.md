@@ -60,7 +60,7 @@ O **FinançasIA** é um app completo de finanças pessoais que permite registrar
 | Estilização | Tailwind CSS + shadcn/ui | 3.x | Design system com tokens |
 | Roteamento | React Router DOM | 6.30 | SPA routing |
 | Estado | React Hooks | — | useState, useCallback, useEffect |
-| Gráficos | Recharts | 2.15 | Visualizações (futuro) |
+| Gráficos | Recharts | 2.15 | AreaChart de evolução mensal (1M-1A) |
 | Formulários | React Hook Form + Zod | 7.x / 3.x | Validação tipada |
 | Mobile | Capacitor | 8.x | Android/iOS nativo |
 | PWA | Service Worker | — | Cache offline |
@@ -115,6 +115,11 @@ O **FinançasIA** é um app completo de finanças pessoais que permite registrar
 ### 📊 Dashboard (`DashboardTab`)
 - Saldo mensal calculado (receitas − despesas)
 - Cards separados de receita e despesa total
+- **📈 Gráfico de Evolução Mensal** (Recharts AreaChart) com:
+  - Seletor de período: 1M, 2M, 3M, 4M, 5M, 6M e 1 Ano
+  - Linhas de Receitas (verde) e Despesas (vermelho) com preenchimento gradiente
+  - Tooltip com valores formatados em R$
+  - Resumo totalizado do período (Receitas, Despesas, Saldo)
 - Top 5 categorias com barras de progresso proporcionais
 - Últimas 5 transações com ícone, método e valor
 
