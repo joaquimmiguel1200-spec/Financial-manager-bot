@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { reportService } from '@/services/reportService';
+import MonthlyEvolutionChart from '@/components/MonthlyEvolutionChart';
 import { 
   LayoutDashboard, MessageCircle, Target, User, LogOut, Plus, Trash2, Send, ArrowUpCircle, ArrowDownCircle, Download, FileText, Moon, Sun, CalendarDays
 } from 'lucide-react';
@@ -75,7 +76,7 @@ export default function AppPage() {
 }
 
 function DashboardTab() {
-  const { totalIncome, totalExpense, balance, expensesByCategory, monthTransactions } = useFinancialData();
+  const { totalIncome, totalExpense, balance, expensesByCategory, monthTransactions, transactions } = useFinancialData();
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const sortedCategories = Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1]);
@@ -104,6 +105,8 @@ function DashboardTab() {
           <p className="font-bold text-destructive text-lg">{fmt(totalExpense)}</p>
         </div>
       </div>
+
+      <MonthlyEvolutionChart transactions={transactions} />
 
       {sortedCategories.length > 0 && (
         <div className="rounded-xl bg-card border border-border p-4">
