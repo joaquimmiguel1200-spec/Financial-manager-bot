@@ -27,12 +27,9 @@ async function fetchSubscription(): Promise<SubscriptionRow | null> {
 
   if (error || !data) return null;
 
-  // Server-side trial expiry check
+  // Trial expiry is checked read-only; no client-side update
   if (data.trial_end && new Date(data.trial_end) < new Date() && data.is_trial_active) {
-    await supabase
-      .from('subscriptions')
-      .update({ is_trial_active: false, plan: 'free', is_active: true })
-      .eq('user_id', user.id);
+    // Mark locally expired but don't update DB from client
     data.is_trial_active = false;
     data.plan = 'free';
   }
