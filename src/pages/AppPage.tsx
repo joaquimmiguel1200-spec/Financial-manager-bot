@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '@/services/authService';
-import { useFinancialData } from '@/hooks/useFinancialData';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseFinancialData } from '@/hooks/useSupabaseFinancialData';
 import { useTheme } from '@/hooks/useTheme';
 import { chatAIService } from '@/services/chatAIService';
 import { subscriptionService } from '@/services/subscriptionService';
-import type { Transaction, ChatMessage, FixedEntry, PaymentMethod } from '@/types';
+import type { ChatMessage, PaymentMethod } from '@/types';
 import { CATEGORY_ICONS, PAYMENT_METHOD_LABELS } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { reportService } from '@/services/reportService';
 import MonthlyEvolutionChart from '@/components/MonthlyEvolutionChart';
 import { 
-  LayoutDashboard, MessageCircle, Target, User, LogOut, Plus, Trash2, Send, ArrowUpCircle, ArrowDownCircle, Download, FileText, Moon, Sun, CalendarDays
+  LogOut, Plus, Trash2, Send, ArrowUpCircle, ArrowDownCircle, Download, FileText, Moon, Sun, CalendarDays, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { securityService } from '@/services/securityService';
@@ -22,23 +22,33 @@ type AppTab = 'dashboard' | 'transactions' | 'chat' | 'goals' | 'profile';
 
 export default function AppPage() {
   const navigate = useNavigate();
-  const session = authService.getSession();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [tab, setTab] = useState<AppTab>('dashboard');
 
   useEffect(() => {
-    if (!session) navigate('/login');
-  }, [session, navigate]);
+    if (!authLoading && !user) navigate('/login');
+  }, [user, authLoading, navigate]);
 
-  if (!session) return null;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-gradient-hero px-4 py-3 flex items-center justify-between">
         <span className="font-display font-bold text-primary-foreground">💰 FinançasIA 2.0</span>
-        <button
-          onClick={() => { authService.logout(); navigate('/'); }}
-          className="text-primary-foreground/80 hover:text-primary-foreground"
-        >
+        <button onClick={handleLogout} className="text-primary-foreground/80 hover:text-primary-foreground">
           <LogOut className="w-5 h-5" />
         </button>
       </header>
@@ -46,7 +56,7 @@ export default function AppPage() {
       <main className="flex-1 overflow-auto pb-20">
         {tab === 'dashboard' && <DashboardTab />}
         {tab === 'transactions' && <TransactionsTab />}
-        {tab === 'chat' && <ChatTab userId={session.id} />}
+        {tab === 'chat' && <ChatTab />}
         {tab === 'goals' && <GoalsTab />}
         {tab === 'profile' && <ProfileTab />}
       </main>
@@ -76,11 +86,25 @@ export default function AppPage() {
 }
 
 function DashboardTab() {
-  const { totalIncome, totalExpense, balance, expensesByCategory, monthTransactions, transactions } = useFinancialData();
+  const { totalIncome, totalExpense, balance, expensesByCategory, monthTransactions, transactions } = useSupabaseFinancialData();
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const sortedCategories = Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1]);
   const maxCat = sortedCategories[0]?.[1] || 1;
+
+  // Adapt transactions for chart component
+  const chartTransactions = transactions.map(t => ({
+    ...t,
+    id: t.id,
+    userId: t.user_id,
+    type: t.type as 'income' | 'expense',
+    amount: Number(t.amount),
+    category: t.category,
+    description: t.description,
+    date: t.date,
+    paymentMethod: (t.payment_method || 'pix') as any,
+    createdAt: t.created_at,
+  }));
 
   return (
     <div className="p-4 space-y-4">
@@ -106,7 +130,7 @@ function DashboardTab() {
         </div>
       </div>
 
-      <MonthlyEvolutionChart transactions={transactions} />
+      <MonthlyEvolutionChart transactions={chartTransactions} />
 
       {sortedCategories.length > 0 && (
         <div className="rounded-xl bg-card border border-border p-4">
@@ -142,11 +166,11 @@ function DashboardTab() {
                   <span>{CATEGORY_ICONS[tx.category] || '📌'}</span>
                   <div>
                     <p className="font-medium text-xs">{tx.description}</p>
-                    <p className="text-[10px] text-muted-foreground">{PAYMENT_METHOD_LABELS[tx.paymentMethod]}</p>
+                    <p className="text-[10px] text-muted-foreground">{PAYMENT_METHOD_LABELS[(tx.payment_method || 'pix') as PaymentMethod]}</p>
                   </div>
                 </div>
                 <span className={`font-medium text-xs ${tx.type === 'income' ? 'text-primary' : 'text-destructive'}`}>
-                  {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
+                  {tx.type === 'income' ? '+' : '-'}{fmt(Number(tx.amount))}
                 </span>
               </div>
             ))}
@@ -158,20 +182,28 @@ function DashboardTab() {
 }
 
 function TransactionsTab() {
-  const { transactions, addTransaction, deleteTransaction } = useFinancialData();
+  const { transactions, addTransaction, deleteTransaction } = useSupabaseFinancialData();
   const [showForm, setShowForm] = useState(false);
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Outros');
   const [description, setDescription] = useState('');
-  const [method, setMethod] = useState<Transaction['paymentMethod']>('pix');
+  const [method, setMethod] = useState('pix');
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const val = parseFloat(amount.replace(',', '.'));
     if (!val || !description) { toast.error('Preencha todos os campos'); return; }
-    if (!subscriptionService.canAddTransaction(transactions.length)) { toast.error('Limite de transações atingido. Faça upgrade para Pro!'); return; }
-    addTransaction({ type, amount: val, category, description, date: new Date().toISOString(), paymentMethod: method, source: 'manual' });
+    await addTransaction({
+      type, amount: val, category, description,
+      date: new Date().toISOString(),
+      payment_method: method,
+      source: 'manual',
+      is_recurring: false,
+      parent_id: null,
+      installment_number: null,
+      installment_total: null,
+    });
     toast.success('Transação adicionada!');
     setAmount(''); setDescription(''); setShowForm(false);
   };
@@ -196,7 +228,7 @@ function TransactionsTab() {
           <select value={category} onChange={e => setCategory(e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
             {(type === 'income' ? ['Salário','Freelance','Investimentos','Outros'] : ['Alimentação','Transporte','Moradia','Saúde','Educação','Lazer','Roupas','Compras','Tecnologia','Assinaturas','Outros']).map(c => <option key={c}>{c}</option>)}
           </select>
-          <select value={method} onChange={e => setMethod(e.target.value as Transaction['paymentMethod'])} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
+          <select value={method} onChange={e => setMethod(e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
             <option value="pix">Pix</option>
             <option value="credito">Crédito</option>
             <option value="debito">Débito</option>
@@ -221,16 +253,17 @@ function TransactionsTab() {
                 <div>
                   <p className="font-medium text-sm">{tx.description}</p>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span>{PAYMENT_METHOD_LABELS[tx.paymentMethod]}</span>
-                    {tx.installments?.[0] && <span>• {tx.installments[0].number}/{tx.installments[0].total}</span>}
+                    <span>{PAYMENT_METHOD_LABELS[(tx.payment_method || 'pix') as PaymentMethod]}</span>
+                    {tx.installment_number && tx.installment_total && <span>• {tx.installment_number}/{tx.installment_total}</span>}
                     {tx.source === 'chat' && <span>• 💬 Chat</span>}
+                    {tx.is_recurring && <span>• 🔄 Recorrente</span>}
                     <span>• {new Date(tx.date).toLocaleDateString('pt-BR')}</span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-bold text-sm ${tx.type === 'income' ? 'text-primary' : 'text-destructive'}`}>
-                  {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
+                  {tx.type === 'income' ? '+' : '-'}{fmt(Number(tx.amount))}
                 </span>
                 <button onClick={() => deleteTransaction(tx.id)} className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="w-4 h-4" />
@@ -244,8 +277,9 @@ function TransactionsTab() {
   );
 }
 
-function ChatTab({ userId }: { userId: string }) {
-  const { addTransactions } = useFinancialData();
+function ChatTab() {
+  const { user } = useAuth();
+  const { addTransactions } = useSupabaseFinancialData();
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: '0', role: 'assistant', content: '👋 Olá! Sou a IA do FinançasIA 2.0!\n\nMe diga seus gastos e eu registro automaticamente.\n\n💬 "Comprei um tênis de R$ 400 no cartão em 4x"\n💬 "Paguei R$ 85 de pix no mercado"', timestamp: new Date().toISOString() },
   ]);
@@ -256,8 +290,8 @@ function ChatTab({ userId }: { userId: string }) {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
   }, [messages]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim() || !user) return;
     const userMsg: ChatMessage = { id: securityService.generateId(), role: 'user', content: input, timestamp: new Date().toISOString() };
     setMessages(prev => [...prev, userMsg]);
 
@@ -265,8 +299,22 @@ function ChatTab({ userId }: { userId: string }) {
     const response = chatAIService.generateResponse(parsed, input);
 
     if (parsed) {
-      const txs = chatAIService.createTransactions(parsed, userId);
-      addTransactions(txs);
+      const txs = chatAIService.createTransactions(parsed, user.id);
+      // Convert to DB format
+      const dbTxs = txs.map(tx => ({
+        type: tx.type,
+        amount: tx.amount,
+        category: tx.category,
+        description: tx.description,
+        date: tx.date,
+        payment_method: tx.paymentMethod,
+        source: 'chat' as string,
+        is_recurring: false,
+        parent_id: null as string | null,
+        installment_number: tx.installments?.[0]?.number || null,
+        installment_total: tx.installments?.[0]?.total || null,
+      }));
+      await addTransactions(dbTxs);
     }
 
     const aiMsg: ChatMessage = { id: securityService.generateId(), role: 'assistant', content: response, timestamp: new Date().toISOString() };
@@ -306,29 +354,28 @@ function ChatTab({ userId }: { userId: string }) {
 }
 
 function GoalsTab() {
-  const { goals, addGoal, updateGoal, deleteGoal } = useFinancialData();
+  const { goals, addGoal, updateGoal, deleteGoal } = useSupabaseFinancialData();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
   const [deadline, setDeadline] = useState('');
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const val = parseFloat(target.replace(',', '.'));
     if (!name || !val || !deadline) { toast.error('Preencha todos os campos'); return; }
-    if (!subscriptionService.canAddGoal(goals.length)) { toast.error('Limite de metas atingido. Faça upgrade para Pro!'); return; }
-    addGoal({ name, targetAmount: val, currentAmount: 0, deadline });
+    await addGoal({ name, target_amount: val, current_amount: 0, deadline });
     setName(''); setTarget(''); setDeadline(''); setShowForm(false);
     toast.success('Meta criada!');
   };
 
-  const addToGoal = (id: string) => {
+  const addToGoal = async (id: string) => {
     const val = prompt('Quanto deseja adicionar? (R$)');
     if (!val) return;
     const amount = parseFloat(val.replace(',', '.'));
     if (!amount) return;
     const goal = goals.find(g => g.id === id);
-    if (goal) updateGoal(id, { currentAmount: goal.currentAmount + amount });
+    if (goal) await updateGoal(id, { current_amount: Number(goal.current_amount) + amount });
   };
 
   return (
@@ -357,7 +404,7 @@ function GoalsTab() {
       ) : (
         <div className="space-y-3">
           {goals.map(g => {
-            const pct = Math.min(100, (g.currentAmount / g.targetAmount) * 100);
+            const pct = Math.min(100, (Number(g.current_amount) / Number(g.target_amount)) * 100);
             const daysLeft = Math.max(0, Math.ceil((new Date(g.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
             return (
               <div key={g.id} className="rounded-xl bg-card border border-border p-4">
@@ -368,7 +415,7 @@ function GoalsTab() {
                   </button>
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                  <span>{fmt(g.currentAmount)} / {fmt(g.targetAmount)}</span>
+                  <span>{fmt(Number(g.current_amount))} / {fmt(Number(g.target_amount))}</span>
                   <span>{daysLeft} dias restantes</span>
                 </div>
                 <div className="h-3 bg-muted rounded-full overflow-hidden mb-3">
@@ -390,52 +437,32 @@ function GoalsTab() {
 }
 
 function FixedEntriesSection({ type }: { type: 'income' | 'expense' }) {
-  const user = authService.getCurrentUser();
-  const entries = type === 'income' ? (user?.fixedIncomes || []) : (user?.fixedExpenses || []);
-  const [, forceUpdate] = useState(0);
+  const { fixedEntries, addFixedEntry, deleteFixedEntry } = useSupabaseFinancialData();
+  const entries = fixedEntries.filter(e => e.type === type);
   const [showForm, setShowForm] = useState(false);
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [day, setDay] = useState('1');
   const [category, setCategory] = useState('Outros');
-  const [method, setMethod] = useState<PaymentMethod>('pix');
+  const [method, setMethod] = useState('pix');
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const val = parseFloat(amount.replace(',', '.'));
     if (!desc || !val || !day) { toast.error('Preencha todos os campos'); return; }
     const dayNum = parseInt(day);
     if (dayNum < 1 || dayNum > 31) { toast.error('Dia inválido (1-31)'); return; }
 
-    const newEntry: FixedEntry = {
-      id: securityService.generateId(),
+    await addFixedEntry({
+      type,
       description: securityService.sanitizeInput(desc),
       amount: val,
-      dayOfMonth: dayNum,
+      day_of_month: dayNum,
       category,
-      paymentMethod: method,
-    };
-
-    const updated = [...entries, newEntry];
-    if (type === 'income') {
-      authService.updateFixedIncomes(updated);
-    } else {
-      authService.updateFixedExpenses(updated);
-    }
+      payment_method: method,
+    });
     setDesc(''); setAmount(''); setDay('1'); setShowForm(false);
-    forceUpdate(n => n + 1);
     toast.success(`${type === 'income' ? 'Receita' : 'Despesa'} fixa adicionada!`);
-  };
-
-  const handleDelete = (id: string) => {
-    const updated = entries.filter(e => e.id !== id);
-    if (type === 'income') {
-      authService.updateFixedIncomes(updated);
-    } else {
-      authService.updateFixedExpenses(updated);
-    }
-    forceUpdate(n => n + 1);
-    toast.success('Removido!');
   };
 
   const title = type === 'income' ? '💰 Receitas Fixas' : '📋 Despesas Fixas';
@@ -465,7 +492,7 @@ function FixedEntriesSection({ type }: { type: 'income' | 'expense' }) {
           <select value={category} onChange={e => setCategory(e.target.value)} className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs">
             {categories.map(c => <option key={c}>{c}</option>)}
           </select>
-          <select value={method} onChange={e => setMethod(e.target.value as PaymentMethod)} className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs">
+          <select value={method} onChange={e => setMethod(e.target.value)} className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs">
             <option value="pix">Pix</option>
             <option value="credito">Crédito</option>
             <option value="debito">Débito</option>
@@ -487,14 +514,14 @@ function FixedEntriesSection({ type }: { type: 'income' | 'expense' }) {
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{e.description}</p>
                 <p className="text-muted-foreground text-[10px]">
-                  Dia {e.dayOfMonth} • {e.category} • {PAYMENT_METHOD_LABELS[e.paymentMethod || 'pix']}
+                  Dia {e.day_of_month} • {e.category} • {PAYMENT_METHOD_LABELS[(e.payment_method || 'pix') as PaymentMethod]}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className={`font-bold ${type === 'income' ? 'text-primary' : 'text-destructive'}`}>
-                  {fmt(e.amount)}
+                  {fmt(Number(e.amount))}
                 </span>
-                <button onClick={() => handleDelete(e.id)} className="text-muted-foreground hover:text-destructive">
+                <button onClick={() => deleteFixedEntry(e.id)} className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="w-3 h-3" />
                 </button>
               </div>
@@ -507,44 +534,50 @@ function FixedEntriesSection({ type }: { type: 'income' | 'expense' }) {
 }
 
 function ProfileTab() {
-  const session = authService.getSession();
-  const [, forceUpdate] = useState(0);
-  const sub = subscriptionService.getSubscription();
-  const { transactions, goals } = useFinancialData();
+  const { user } = useAuth();
   const { isDark, toggle: toggleTheme } = useTheme();
+  const { transactions, goals } = useSupabaseFinancialData();
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
 
   const handleExportCSV = () => {
-    if (!subscriptionService.canExport()) { toast.error('Exportação disponível apenas no plano Pro!'); return; }
-    reportService.exportCSV(transactions);
+    const adaptedTxs = transactions.map(t => ({
+      id: t.id, userId: t.user_id, type: t.type as any, amount: Number(t.amount),
+      category: t.category, description: t.description, date: t.date,
+      paymentMethod: (t.payment_method || 'pix') as any, createdAt: t.created_at,
+    }));
+    reportService.exportCSV(adaptedTxs);
     toast.success('CSV exportado com sucesso!');
   };
 
   const handleExportReport = () => {
-    if (!subscriptionService.canExport()) { toast.error('Exportação disponível apenas no plano Pro!'); return; }
-    reportService.exportReport(transactions, goals);
+    const adaptedTxs = transactions.map(t => ({
+      id: t.id, userId: t.user_id, type: t.type as any, amount: Number(t.amount),
+      category: t.category, description: t.description, date: t.date,
+      paymentMethod: (t.payment_method || 'pix') as any, createdAt: t.created_at,
+    }));
+    const adaptedGoals = goals.map(g => ({
+      id: g.id, userId: g.user_id, name: g.name, targetAmount: Number(g.target_amount),
+      currentAmount: Number(g.current_amount), deadline: g.deadline, createdAt: g.created_at,
+    }));
+    reportService.exportReport(adaptedTxs, adaptedGoals);
     toast.success('Relatório exportado com sucesso!');
   };
 
   return (
     <div className="p-4 space-y-4">
-      {/* User info */}
       <div className="rounded-xl bg-card border border-border p-5 text-center">
         <div className="w-16 h-16 rounded-full bg-gradient-hero flex items-center justify-center text-2xl mx-auto mb-3">
           👤
         </div>
-        <h3 className="font-display font-bold text-lg">{session?.name}</h3>
-        <p className="text-sm text-muted-foreground">{session?.email}</p>
-        <div className="mt-3 inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-          {sub ? subscriptionService.getPlanLabel(sub.plan) : 'Grátis'}
-          {subscriptionService.isTrialActive() && ` (${subscriptionService.getTrialDaysRemaining()} dias trial)`}
-        </div>
+        <h3 className="font-display font-bold text-lg">{displayName}</h3>
+        <p className="text-sm text-muted-foreground">{user?.email}</p>
       </div>
 
-      {/* Dark mode toggle */}
       <div className="rounded-xl bg-card border border-border p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {isDark ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-gold" />}
+            {isDark ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4" style={{ color: 'hsl(43, 96%, 56%)' }} />}
             <div>
               <p className="font-display font-semibold text-sm">Tema Escuro</p>
               <p className="text-[10px] text-muted-foreground">Melhor experiência noturna</p>
@@ -554,33 +587,9 @@ function ProfileTab() {
         </div>
       </div>
 
-      {/* Plan */}
-      <div className="rounded-xl bg-card border border-border p-4 space-y-3">
-        <h3 className="font-display font-semibold text-sm">Plano Atual</h3>
-        {subscriptionService.isPro() ? (
-          <div className="space-y-2">
-            <p className="text-xs text-primary">✅ Acesso Pro ativo</p>
-            <p className="text-xs text-muted-foreground">Transações, chat e metas ilimitadas</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Limite: 30 transações/mês, 5 chats/dia, 1 meta</p>
-            <Button
-              size="sm"
-              className="w-full bg-gradient-hero text-primary-foreground hover:opacity-90"
-              onClick={() => { subscriptionService.subscribe('pro_monthly'); toast.success('Plano Pro ativado! 7 dias grátis.'); forceUpdate(n => n + 1); }}
-            >
-              Fazer Upgrade para Pro
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Fixed entries */}
       <FixedEntriesSection type="income" />
       <FixedEntriesSection type="expense" />
 
-      {/* Export */}
       <div className="rounded-xl bg-card border border-border p-4 space-y-3">
         <h3 className="font-display font-semibold text-sm">📥 Exportar Dados</h3>
         <div className="grid grid-cols-2 gap-2">
@@ -591,44 +600,18 @@ function ProfileTab() {
             <FileText className="w-3 h-3 mr-1" /> Relatório TXT
           </Button>
         </div>
-        {!subscriptionService.isPro() && (
-          <p className="text-[10px] text-muted-foreground">🔒 Disponível apenas no plano Pro</p>
-        )}
       </div>
 
-      {/* Security */}
       <div className="rounded-xl bg-card border border-border p-4">
         <h3 className="font-display font-semibold text-sm mb-3">🔒 Segurança</h3>
         <ul className="space-y-2 text-xs text-muted-foreground">
-          <li>✅ Criptografia SHA-256</li>
-          <li>✅ Dados isolados por usuário</li>
-          <li>✅ Proteção contra XSS</li>
-          <li>✅ Rate limiting de login</li>
+          <li>✅ Autenticação via Lovable Cloud</li>
+          <li>✅ Login com Google OAuth 2.0</li>
+          <li>✅ Dados isolados por RLS (Row Level Security)</li>
+          <li>✅ Sanitização XSS + CSP Headers</li>
+          <li>✅ Cookies com consentimento LGPD</li>
+          <li>✅ HTTPS + Criptografia end-to-end</li>
         </ul>
-      </div>
-
-      {/* Danger zone */}
-      <div className="rounded-xl bg-card border border-border p-4">
-        <h3 className="font-display font-semibold text-sm mb-3 text-destructive">⚠️ Zona de Perigo</h3>
-        <p className="text-xs text-muted-foreground mb-3">Excluir conta apaga todos os seus dados permanentemente.</p>
-        <Button
-          size="sm"
-          variant="outline"
-          className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs"
-          onClick={async () => {
-            const pw = prompt('Digite sua senha para confirmar:');
-            if (!pw) return;
-            const result = await authService.deleteAccount(pw);
-            if (result.success) {
-              toast.success(result.message);
-              window.location.href = '/';
-            } else {
-              toast.error(result.message);
-            }
-          }}
-        >
-          Excluir Conta
-        </Button>
       </div>
     </div>
   );
