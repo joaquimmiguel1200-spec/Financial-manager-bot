@@ -94,7 +94,6 @@ function DashboardTab() {
 
   // Adapt transactions for chart component
   const chartTransactions = transactions.map(t => ({
-    ...t,
     id: t.id,
     userId: t.user_id,
     type: t.type as 'income' | 'expense',
@@ -102,7 +101,8 @@ function DashboardTab() {
     category: t.category,
     description: t.description,
     date: t.date,
-    paymentMethod: (t.payment_method || 'pix') as any,
+    paymentMethod: (t.payment_method || 'pix') as 'pix' | 'credito' | 'debito' | 'dinheiro' | 'boleto',
+    source: (t.source || 'manual') as 'manual' | 'chat',
     createdAt: t.created_at,
   }));
 
