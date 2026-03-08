@@ -54,6 +54,9 @@ export default function LoginPage() {
               <Label htmlFor="password">Senha</Label>
               <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••" />
             </div>
+            <div className="flex justify-end">
+              <Link to="/forgot-password" className="text-xs text-primary hover:underline">Esqueceu a senha?</Link>
+            </div>
             <Button type="submit" className="w-full bg-gradient-hero text-primary-foreground hover:opacity-90" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
