@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseFinancialData } from '@/hooks/useSupabaseFinancialData';
 import { useTheme } from '@/hooks/useTheme';
 import { chatAIService } from '@/services/chatAIService';
-import { subscriptionService } from '@/services/subscriptionService';
 import type { ChatMessage, PaymentMethod } from '@/types';
 import { CATEGORY_ICONS, PAYMENT_METHOD_LABELS } from '@/types';
 import { Button } from '@/components/ui/button';
