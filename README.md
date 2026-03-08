@@ -1,12 +1,13 @@
 # 💰 FinançasIA 2.0
 
-> Aplicativo de gestão financeira pessoal com IA integrada, dark mode, exportação de dados e suporte a app nativo (Google Play Store).
+> Aplicativo de gestão financeira pessoal com IA integrada, autenticação via Google OAuth + Email, banco de dados cloud, transações recorrentes automáticas, cookies LGPD e suporte a app nativo (Google Play Store).
 
 [![React](https://img.shields.io/badge/React-18.3-61dafb?logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript)](https://typescriptlang.org)
 [![Vite](https://img.shields.io/badge/Vite-5.x-646cff?logo=vite)](https://vitejs.dev)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.x-06b6d4?logo=tailwindcss)](https://tailwindcss.com)
 [![Capacitor](https://img.shields.io/badge/Capacitor-8.x-119eff?logo=capacitor)](https://capacitorjs.com)
+[![Lovable Cloud](https://img.shields.io/badge/Lovable_Cloud-Backend-0d9668)](https://lovable.dev)
 
 **URL**: https://sunbeam-forge-lab.lovable.app
 
@@ -18,35 +19,38 @@
 - [Stack Tecnológica](#-stack-tecnológica)
 - [Arquitetura](#-arquitetura)
 - [Funcionalidades](#-funcionalidades)
+- [Autenticação](#-autenticação)
+- [Banco de Dados](#-banco-de-dados)
+- [Transações Recorrentes](#-transações-recorrentes)
 - [Design System](#-design-system)
 - [Segurança](#-segurança)
+- [Cookies & LGPD](#-cookies--lgpd)
 - [PWA & Offline](#-pwa--offline)
 - [App Nativo (Capacitor)](#-app-nativo-capacitor)
 - [Como Executar](#-como-executar)
 - [Estrutura de Arquivos](#-estrutura-de-arquivos)
-- [Tipos TypeScript](#-tipos-typescript)
-- [Serviços (Services)](#-serviços-services)
-- [Planos e Limites](#-planos-e-limites)
-- [Contribuição](#-contribuição)
 
 ---
 
 ## Visão Geral
 
-O **FinançasIA** é um app completo de finanças pessoais que permite registrar transações manualmente ou por **linguagem natural via Chat IA**, definir metas financeiras, gerenciar receitas/despesas fixas recorrentes e exportar relatórios. Projetado como **PWA** e **app nativo** para Google Play Store via Capacitor.
+O **FinançasIA** é um app completo de finanças pessoais que permite registrar transações manualmente ou por **linguagem natural via Chat IA**, definir metas financeiras, gerenciar receitas/despesas fixas recorrentes (aplicadas automaticamente todo mês) e exportar relatórios. Autenticação real com **Google OAuth 2.0** e **email/senha** via Lovable Cloud.
 
 ### Diferenciais
 
 | Feature | Descrição |
 |---------|-----------|
 | 🤖 Chat IA | Registro por linguagem natural com suporte a parcelamentos |
-| 🌙 Dark Mode | Toggle com persistência e detecção de preferência do sistema |
-| 📊 Dashboard | Resumo financeiro com categorias e gráficos |
-| 🔄 Recorrências | Receitas e despesas fixas com dia do mês configurável |
-| 📥 Exportação | CSV (Excel) e TXT detalhado — exclusivo Pro |
+| 🔐 Auth Cloud | Login com Google OAuth 2.0 + Email/Senha via Lovable Cloud |
+| 🗄️ Banco Cloud | PostgreSQL com Row Level Security (RLS) |
+| 🔄 Recorrências Auto | Receitas/despesas fixas aplicadas automaticamente no início do mês |
+| 📊 Gráficos | Evolução mensal 1M-1A com Recharts AreaChart |
+| 🌙 Dark Mode | Toggle com persistência e detecção do sistema |
+| 📥 Exportação | CSV (Excel) e TXT detalhado |
 | 📱 PWA + Nativo | Instalável offline + APK/AAB para Play Store |
-| 🔒 Segurança | Hash SHA-256, sanitização XSS, rate limiting |
-| 📜 LGPD | Termos de Uso e Política de Privacidade completos |
+| 🍪 Cookies LGPD | Consentimento granular com persistência no banco |
+| 📲 Install Prompt | Banner de instalação automático para PWA |
+| 🔒 Segurança | CSP, XSS sanitization, RLS, HTTPS |
 
 ---
 
@@ -58,13 +62,13 @@ O **FinançasIA** é um app completo de finanças pessoais que permite registrar
 | Linguagem | TypeScript | 5.x | Tipagem estática |
 | Build | Vite | 5.x | HMR e bundle otimizado |
 | Estilização | Tailwind CSS + shadcn/ui | 3.x | Design system com tokens |
+| Backend | Lovable Cloud (PostgreSQL) | — | Auth, DB, RLS |
+| Auth | Lovable Cloud Auth | — | Google OAuth + Email/Senha |
 | Roteamento | React Router DOM | 6.30 | SPA routing |
-| Estado | React Hooks | — | useState, useCallback, useEffect |
-| Gráficos | Recharts | 2.15 | AreaChart de evolução mensal (1M-1A) |
-| Formulários | React Hook Form + Zod | 7.x / 3.x | Validação tipada |
+| Estado | React Context + Hooks | — | AuthContext, useSupabaseFinancialData |
+| Gráficos | Recharts | 2.15 | AreaChart de evolução mensal |
 | Mobile | Capacitor | 8.x | Android/iOS nativo |
 | PWA | Service Worker | — | Cache offline |
-| Testes | Vitest | — | Unit testing |
 
 ---
 
@@ -74,141 +78,150 @@ O **FinançasIA** é um app completo de finanças pessoais que permite registrar
 ┌─────────────────────────────────────────────────────┐
 │                    App (React SPA)                   │
 ├──────────────┬────────────────┬──────────────────────┤
-│   Pages      │   Components   │   Hooks              │
-│  ─ AppPage   │  ─ Landing/*   │  ─ useFinancialData  │
-│  ─ Login     │  ─ ui/* (29+)  │  ─ useTheme          │
-│  ─ Register  │  ─ SplashScreen│  ─ useMobile         │
-│  ─ Terms     │  ─ NavLink     │  ─ useToast          │
-│  ─ Privacy   │               │                      │
+│   Pages      │   Components   │   Hooks/Contexts     │
+│  ─ AppPage   │  ─ Landing/*   │  ─ AuthContext        │
+│  ─ Login     │  ─ ui/* (29+)  │  ─ useSupabaseData   │
+│  ─ Register  │  ─ CookieConsent│ ─ useTheme          │
+│  ─ Terms     │  ─ InstallPrompt│ ─ useMobile         │
+│  ─ Privacy   │  ─ SplashScreen│                      │
 ├──────────────┴────────────────┴──────────────────────┤
-│                    Services Layer                     │
+│                 Lovable Cloud Backend                 │
 │  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐ │
-│  │ authService  │ │ chatAIService│ │ reportService │ │
-│  │ (auth+sessão)│ │ (NLP engine) │ │ (CSV/TXT)     │ │
+│  │ Auth (Google │ │ PostgreSQL   │ │ RLS Policies  │ │
+│  │ + Email/PW)  │ │ (6 tables)   │ │ (per user_id) │ │
 │  └──────────────┘ └──────────────┘ └───────────────┘ │
 │  ┌──────────────────┐ ┌────────────────────────────┐ │
-│  │subscriptionService│ │ securityService            │ │
-│  │(planos+limites)   │ │ (hash, sanitize, rate)     │ │
+│  │ recurring_log    │ │ cookie_consent             │ │
+│  │ (auto-apply)     │ │ (LGPD compliance)          │ │
 │  └──────────────────┘ └────────────────────────────┘ │
 ├──────────────────────────────────────────────────────┤
-│           Storage (localStorage, offline-first)       │
-│  ─ Dados isolados por userId                          │
-│  ─ Sessão com token de autenticação                   │
-│  ─ Preferência de tema (dark/light)                   │
-│  ─ Assinatura e plano do usuário                      │
+│           Client Services (Legacy Support)            │
+│  ─ chatAIService (NLP engine)                         │
+│  ─ securityService (XSS, CSP)                         │
+│  ─ reportService (CSV/TXT export)                     │
 └──────────────────────────────────────────────────────┘
 ```
 
-### Fluxo de Dados
+---
 
-1. **Autenticação** → `authService` gerencia registro/login com hash SHA-256 e sessão via localStorage
-2. **Dados Financeiros** → `useFinancialData` hook centraliza transações e metas, persistindo por `userId`
-3. **Chat IA** → `chatAIService` processa linguagem natural → extrai valor, categoria, método e parcelas
-4. **Tema** → `useTheme` hook gerencia dark/light mode com persistência e detecção do sistema
-5. **Entradas Fixas** → Armazenadas no perfil do usuário via `authService.updateFixedIncomes/Expenses`
-6. **Exportação** → `reportService` gera CSV e TXT com resumo por categoria/método
+## 🔐 Autenticação
+
+### Provedores Suportados
+
+| Provedor | Método | Status |
+|----------|--------|--------|
+| **Google** | OAuth 2.0 (Managed) | ✅ Ativo |
+| **Email/Senha** | Supabase Auth | ✅ Ativo |
+| **Apple** | OAuth 2.0 (Managed) | 🔄 Disponível |
+
+### Fluxo de Autenticação
+
+```
+┌─ Registro ─────────────────────────────────────────┐
+│  1. Email/Senha ou Google OAuth                     │
+│  2. Lovable Cloud cria usuário em auth.users       │
+│  3. Trigger auto-cria perfil em profiles           │
+│  4. AuthContext atualiza estado global             │
+│  5. Redireciona para /app                          │
+└────────────────────────────────────────────────────┘
+```
+
+### Implementação
+
+```typescript
+// Google OAuth via Lovable Cloud Managed
+import { lovable } from '@/integrations/lovable/index';
+const { error } = await lovable.auth.signInWithOAuth('google', {
+  redirect_uri: window.location.origin,
+});
+
+// Email/Senha via Supabase Auth
+import { supabase } from '@/integrations/supabase/client';
+await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+await supabase.auth.signInWithPassword({ email, password });
+```
 
 ---
 
-## 🚀 Funcionalidades
+## 🗄️ Banco de Dados
 
-### 📊 Dashboard (`DashboardTab`)
-- Saldo mensal calculado (receitas − despesas)
-- Cards separados de receita e despesa total
-- **📈 Gráfico de Evolução Mensal** (Recharts AreaChart) com:
-  - Seletor de período: 1M, 2M, 3M, 4M, 5M, 6M e 1 Ano
-  - Linhas de Receitas (verde) e Despesas (vermelho) com preenchimento gradiente
-  - Tooltip com valores formatados em R$
-  - Resumo totalizado do período (Receitas, Despesas, Saldo)
-- Top 5 categorias com barras de progresso proporcionais
-- Últimas 5 transações com ícone, método e valor
+### Tabelas
 
-### 💸 Extrato (`TransactionsTab`)
-- Formulário de adição com tipo (receita/despesa), valor, descrição, categoria e método de pagamento
-- Lista completa com ícones por categoria
-- Indicação de fonte (manual 📝 ou chat 💬)
-- Suporte a parcelamentos com indicador `1/10`
-- Exclusão individual com confirmação
-- Métodos: Pix, Crédito, Débito, Dinheiro, Boleto
+| Tabela | Campos Principais | RLS |
+|--------|-------------------|-----|
+| `profiles` | user_id, display_name, email, avatar_url | ✅ Por user_id |
+| `transactions` | user_id, type, amount, category, description, date, payment_method, source, is_recurring | ✅ Por user_id |
+| `goals` | user_id, name, target_amount, current_amount, deadline | ✅ Por user_id |
+| `fixed_entries` | user_id, type, description, amount, day_of_month, category | ✅ Por user_id |
+| `recurring_log` | user_id, year_month, applied_at | ✅ Por user_id |
+| `cookie_consent` | session_id, user_id, analytics, marketing, functional | ✅ Restrictive |
 
-### 💬 Chat IA (`ChatTab`)
+### Row Level Security (RLS)
 
-O motor de NLP (`chatAIService`) processa mensagens em português:
+Todas as tabelas possuem RLS habilitado. Políticas garantem que cada usuário só acessa seus próprios dados:
 
-**Detecção de Valor:**
-```
-"R$ 400"  →  400.00
-"400 reais"  →  400.00
-"2 mil reais"  →  2000.00
-"1.500,00"  →  1500.00
+```sql
+CREATE POLICY "Users can view own transactions"
+ON public.transactions FOR SELECT USING (auth.uid() = user_id);
 ```
 
-**Detecção de Método de Pagamento:**
-```
-"no pix"  →  pix
-"no cartão" / "no crédito"  →  credito
-"no débito"  →  debito
-"no boleto"  →  boleto
-(sem menção)  →  dinheiro
-```
+---
 
-**Detecção de Parcelamento:**
-```
-"em 4x"  →  4 parcelas
-"em 10 vezes"  →  10 parcelas
-"parcelado em 12"  →  12 parcelas
-```
+## 🔄 Transações Recorrentes
 
-**Categorização Automática (keywords):**
+O sistema aplica automaticamente as receitas e despesas fixas como transações no início de cada mês.
 
-| Categoria | Palavras-chave |
-|-----------|---------------|
-| Alimentação | almoço, mercado, restaurante, pizza, padaria... |
-| Transporte | uber, gasolina, ônibus, estacionamento... |
-| Moradia | aluguel, condomínio, luz, internet... |
-| Saúde | farmácia, médico, dentista, consulta... |
-| Educação | curso, faculdade, livro, mensalidade... |
-| Lazer | cinema, viagem, bar, show... |
-| Roupas | tênis, sapato, camisa, vestido... |
-| Tecnologia | celular, notebook, fone, tv... |
-| Assinaturas | netflix, spotify, streaming... |
+### Fluxo
 
-**Exemplo Completo:**
 ```
-Entrada: "Comprei um notebook de R$ 4000 no cartão em 10x"
-→ type: expense
-→ amount: 4000
-→ category: Tecnologia
-→ paymentMethod: credito
-→ installments: 10
-→ Gera 10 transações de R$ 400 cada (parcelas mensais)
+┌─ Auto-Apply (useSupabaseFinancialData) ─────────────┐
+│  1. Usuário faz login e acessa /app                  │
+│  2. Hook verifica recurring_log para o mês atual     │
+│  3. Se não aplicado → insere transações fixas        │
+│  4. Marca mês como processado em recurring_log       │
+│  5. Toast: "X transações recorrentes aplicadas!"     │
+└──────────────────────────────────────────────────────┘
 ```
 
-### 🎯 Metas Financeiras (`GoalsTab`)
-- Criação com nome, valor objetivo e prazo (deadline)
-- Barra de progresso visual percentual
-- Contagem de dias restantes
-- Adição incremental de valores
-- Exclusão individual
+### Exemplo
 
-### 👤 Perfil (`ProfileTab`)
-- Informações do usuário (nome, email, plano)
-- **🌙 Toggle Dark Mode** com ícone dinâmico (Sol/Lua)
-- **💰 Receitas Fixas** — CRUD completo com:
-  - Descrição, valor (R$), dia do mês (1-31)
-  - Categoria e método de pagamento
-- **📋 Despesas Fixas** — mesma estrutura
-- Upgrade para plano Pro
-- **📥 Exportação CSV/TXT** (Pro only)
-- Informações de segurança
-- **⚠️ Zona de Perigo** — Exclusão de conta com validação de senha
+Se o usuário tem cadastrado:
+- 💰 Salário: R$ 5.000 (dia 5)
+- 📋 Aluguel: R$ 1.500 (dia 10)
 
-### 📜 Páginas Legais
-- **Termos de Uso** (`/terms`) — 12 seções completas
-- **Política de Privacidade** (`/privacy`) — 15 seções em conformidade com a LGPD (Lei 13.709/2018)
-- Links no rodapé da landing e na tela de registro
-- Header sticky com botão de voltar
-- Layout responsivo mobile-first
+No dia 1º de cada mês, ao abrir o app:
+- Cria transação `[Recorrente] Salário` → R$ 5.000 (receita, dia 5)
+- Cria transação `[Recorrente] Aluguel` → R$ 1.500 (despesa, dia 10)
+
+---
+
+## 🍪 Cookies & LGPD
+
+### Consentimento Granular
+
+| Tipo | Descrição | Padrão |
+|------|-----------|--------|
+| ✅ Essenciais | Autenticação e sessão | Sempre ativo |
+| 📊 Analíticos | Performance e UX | Opt-in |
+| 📢 Marketing | Conteúdo personalizado | Opt-in |
+
+### Implementação
+
+- Banner de cookies aparece 1.5s após o carregamento
+- Opções: "Aceitar todos", "Apenas essenciais", "Personalizar"
+- Consentimento salvo no `localStorage` e na tabela `cookie_consent`
+- Re-exibição após 7 dias se dispensado
+
+---
+
+## 📲 PWA Install Prompt
+
+Banner inteligente que detecta o ambiente:
+- **Android**: Botão "Instalar" usando `beforeinstallprompt` API
+- **iOS**: Instrução "Toque em Compartilhar → Adicionar à Tela de Início"
+- **Desktop**: Prompt padrão do navegador
+- Não aparece se já instalado (`display-mode: standalone`)
+- Dismiss com cooldown de 7 dias
 
 ---
 
@@ -219,113 +232,48 @@ Entrada: "Comprei um notebook de R$ 4000 no cartão em 10x"
 | Token | Light Mode | Dark Mode |
 |-------|-----------|-----------|
 | `--background` | `150 20% 98%` | `160 30% 6%` |
-| `--foreground` | `160 30% 8%` | `150 15% 95%` |
 | `--primary` | `160 84% 39%` | `160 84% 39%` |
 | `--card` | `0 0% 100%` | `160 25% 10%` |
-| `--muted` | `150 15% 93%` | `160 15% 14%` |
 | `--destructive` | `0 72% 51%` | `0 62% 30%` |
-| `--border` | `150 15% 90%` | `160 15% 16%` |
 
 ### Tipografia
 
-| Uso | Fonte | CSS Variable |
-|-----|-------|-------------|
-| Títulos (H1-H6) | Space Grotesk | `--font-display` |
-| Corpo de texto | Inter | `--font-body` |
-
-### Utilitários CSS Customizados
-
-| Classe | Efeito |
-|--------|--------|
-| `.bg-gradient-hero` | Gradiente emerald (135deg) |
-| `.bg-gradient-dark` | Gradiente escuro |
-| `.bg-gradient-gold` | Gradiente dourado |
-| `.glass` | Glassmorphism (backdrop-blur + transparência) |
-| `.shadow-glow` | Sombra luminosa emerald |
-| `.animate-float` | Flutuação suave (6s loop) |
-| `.animate-fade-up` | Fade up na entrada (0.6s) |
-| `.animate-scale-in` | Scale in na entrada (0.4s) |
-
-### Componentes UI (shadcn/ui)
-
-29+ componentes base incluindo: Accordion, Alert, Avatar, Badge, Button, Calendar, Card, Carousel, Checkbox, Command, Dialog, Drawer, Dropdown Menu, Form, Input, Label, Popover, Progress, Radio Group, Scroll Area, Select, Separator, Sheet, Skeleton, Slider, Switch, Tabs, Toast, Toggle, Tooltip.
+| Uso | Fonte |
+|-----|-------|
+| Títulos | Space Grotesk |
+| Corpo | Inter |
 
 ---
 
-## 🔒 Segurança (Enterprise-Grade)
-
-O FinançasIA 2.0 implementa **10 camadas de segurança** para proteção completa de ponta a ponta:
+## 🔒 Segurança
 
 ### Camadas de Proteção
 
-| # | Camada | Implementação | Detalhes |
-|---|--------|--------------|----------|
-| 1 | **Hash de Senha** | PBKDF2 (100k iterações) + salt único | Migração automática de hashes legados SHA-256 |
-| 2 | **Sanitização XSS** | Allowlist estrito + escape de 8 caracteres perigosos | `< > " ' & \` \ /` → entidades HTML |
-| 3 | **Rate Limiting** | Backoff exponencial (3→30s, 5→5min, 8→30min, 10→1h) | Por email normalizado |
-| 4 | **Sessão Segura** | Token 256-bit + expiração 24h + fingerprint do browser | Validação em cada requisição |
-| 5 | **Integridade de Dados** | Checksum SHA-256 em dados persistidos | Detecção de tampering no localStorage |
-| 6 | **Token CSRF** | Token 192-bit por sessão via sessionStorage | Proteção contra cross-site request forgery |
-| 7 | **CSP (Content Security Policy)** | Meta tag com diretivas restritivas | `frame-ancestors 'none'`, `base-uri 'self'` |
-| 8 | **Comparação Constant-Time** | Prevenção de timing attacks na verificação | Todas as comparações de hash/token |
-| 9 | **Anti-Prototype-Pollution** | `safeJSONParse` remove `__proto__`, `constructor` | Parsing seguro de dados externos |
-| 10 | **Audit Log** | Log de eventos de segurança em memória | Login, registro, falhas, rate limiting |
+| # | Camada | Implementação |
+|---|--------|--------------|
+| 1 | **Autenticação Cloud** | Lovable Cloud Auth com JWT tokens |
+| 2 | **RLS (Row Level Security)** | Todas as 6 tabelas protegidas por user_id |
+| 3 | **Google OAuth 2.0** | Managed credentials via Lovable Cloud |
+| 4 | **CSP Headers** | Content-Security-Policy via meta tags |
+| 5 | **XSS Sanitization** | Allowlist estrito + escape de caracteres |
+| 6 | **HTTPS** | Forçado em produção |
+| 7 | **Cookie Consent** | LGPD compliance com política restritiva |
+| 8 | **Anti-Prototype-Pollution** | safeJSONParse em dados externos |
+| 9 | **Secure Headers** | X-Frame-Options: DENY, X-Content-Type-Options: nosniff |
+| 10 | **Session Management** | AuthContext com onAuthStateChange listener |
 
-### Headers de Segurança (index.html)
+### Headers de Segurança
 
 ```html
+<meta http-equiv="Content-Security-Policy" content="..." />
 <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 <meta http-equiv="X-Frame-Options" content="DENY" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 ```
 
-### Validação de Inputs
-
-| Campo | Regras |
-|-------|--------|
-| Email | RFC 5322 simplificado, máx. 254 chars |
-| Senha | 6-128 chars, 1 maiúscula, 1 número, verificação de senhas comuns |
-| Descrição | Máx. 500 chars, sanitização completa |
-| Valor | Numérico, > 0, ≤ 999.999.999, finito |
-| Nome | Mín. 2 chars, sanitizado |
-
-### Detalhes Técnicos do PBKDF2
-
-```typescript
-// Substitui SHA-256 simples por PBKDF2 com salt único
-Algoritmo: PBKDF2-HMAC-SHA256
-Iterações: 100.000
-Salt: 16 bytes (crypto.getRandomValues)
-Output: 32 bytes
-Formato: "pbkdf2:{iterations}:{salt_hex}:{hash_hex}"
-```
-
-### Anti-Enumeração
-
-- Mensagens de erro idênticas para "email não encontrado" e "senha incorreta"
-- Rate limiting aplicado mesmo para emails inexistentes
-- Normalização de email (lowercase + trim) antes de qualquer operação
-
-### Sessão e Autenticação
-
-```
-┌─ Login ─────────────────────────────────────┐
-│  1. Normaliza email (lowercase + trim)       │
-│  2. Verifica rate limiting (exponencial)     │
-│  3. Busca usuário                            │
-│  4. Verifica senha (PBKDF2 constant-time)    │
-│  5. Migra hash legado se necessário          │
-│  6. Cria sessão segura (token + fingerprint) │
-│  7. Gera CSRF token                          │
-│  8. Registra evento no audit log             │
-└──────────────────────────────────────────────┘
-```
-
 ---
 
 ## 📱 PWA & Offline
-
-### Arquivos de Configuração
 
 | Arquivo | Função |
 |---------|--------|
@@ -333,108 +281,46 @@ Formato: "pbkdf2:{iterations}:{salt_hex}:{hash_hex}"
 | `public/sw.js` | Service Worker com estratégia network-first + cache |
 | `index.html` | Metatags PWA, registro do SW, apple-touch-icon |
 
-### Ícones
-
-| Tamanho | Arquivo | Uso |
-|---------|---------|-----|
-| 192×192 | `icon-192.png` | Ícone padrão |
-| 512×512 | `icon-512.png` | Splash screen |
-| 192×192 | `icon-maskable-192.png` | Ícone adaptativo Android |
-| 512×512 | `icon-maskable-512.png` | Ícone adaptativo Android |
-
-### Como Instalar (PWA)
-
-- **Android**: Menu do navegador → "Adicionar à tela inicial"
-- **iOS**: Compartilhar → "Adicionar à Tela de Início"
-
 ---
 
 ## 📲 App Nativo (Capacitor)
 
-### Configuração (`capacitor.config.ts`)
-
-```typescript
-{
-  appId: 'app.lovable.d27214b5ded346b790ae9064a136f0b8',
-  appName: 'FinançasIA',
-  webDir: 'dist',
-  plugins: {
-    SplashScreen: { launchShowDuration: 2000, backgroundColor: '#0d9668' },
-    StatusBar: { backgroundColor: '#0d9668', style: 'LIGHT' },
-  }
-}
-```
-
-### Plugins Nativos
-
-| Plugin | Uso |
-|--------|-----|
-| `@capacitor/core` | Core runtime |
-| `@capacitor/android` | Plataforma Android |
-| `@capacitor/ios` | Plataforma iOS |
-| `@capacitor/splash-screen` | Splash screen nativo (2s) |
-| `@capacitor/status-bar` | Cor da barra de status |
-
-### Gerar APK/AAB para Play Store
+### Gerar APK/AAB
 
 ```bash
-# 1. Clone e instale
 git clone <repo-url> && cd financasia
 npm install
-
-# 2. Adicione a plataforma Android
 npx cap add android
-
-# 3. Build e sincronize
 npm run build
 npx cap sync android
-
-# 4. Abra no Android Studio
 npx cap open android
-
-# 5. No Android Studio: Build → Generate Signed Bundle/APK
-#    Selecione "Android App Bundle (AAB)" para Play Store
+# Android Studio → Build → Generate Signed Bundle/APK
 ```
 
 ### Checklist Play Store
 
 - [x] Ícones adaptativos (maskable) 192×192 e 512×512
-- [x] Splash Screen nativo (2s, cor #0d9668)
-- [x] Status bar com cor temática
-- [x] Termos de Uso completos (`/terms` — 12 seções)
-- [x] Política de Privacidade LGPD (`/privacy` — 15 seções)
-- [x] Exclusão de conta disponível no perfil
-- [x] Conteúdo responsivo mobile-first
-- [x] Funcionamento offline (Service Worker)
-- [x] Manifest completo com atalhos
+- [x] Splash Screen nativo (2s, #0d9668)
+- [x] Termos de Uso + Política de Privacidade LGPD
+- [x] Exclusão de conta disponível
+- [x] Cookie consent LGPD
+- [x] Responsivo mobile-first
+- [x] Service Worker offline
 
 ---
 
 ## 🚀 Como Executar
 
-### Pré-requisitos
-- Node.js 18+
-- npm ou bun
-
-### Desenvolvimento
-
 ```bash
 npm install
 npm run dev
-# → http://localhost:5173
+# → http://localhost:8080
 ```
 
-### Testes
-
-```bash
-npm run test
-```
-
-### Build de Produção
+### Build
 
 ```bash
 npm run build
-# Output em /dist — pode ser hospedado em Vercel, Netlify, AWS S3, etc.
 ```
 
 ---
@@ -442,242 +328,37 @@ npm run build
 ## 📁 Estrutura de Arquivos
 
 ```
-financasia/
-├── public/
-│   ├── favicon.ico               # Favicon
-│   ├── icon-192.png              # Ícone PWA 192×192
-│   ├── icon-512.png              # Ícone PWA 512×512
-│   ├── icon-maskable-192.png     # Ícone adaptativo 192×192
-│   ├── icon-maskable-512.png     # Ícone adaptativo 512×512
-│   ├── manifest.json             # Manifest PWA
-│   ├── sw.js                     # Service Worker
-│   └── robots.txt                # SEO robots
-├── src/
-│   ├── components/
-│   │   ├── Landing/
-│   │   │   ├── LandingPage.tsx       # Página principal + rodapé
-│   │   │   ├── HeroSection.tsx       # Hero com CTAs
-│   │   │   ├── FeaturesSection.tsx   # Grid de funcionalidades
-│   │   │   ├── HowItWorksSection.tsx # Passo a passo
-│   │   │   ├── ChatDemoSection.tsx   # Demo interativo do chat
-│   │   │   ├── PricingSection.tsx    # Planos e preços
-│   │   │   ├── TestimonialsSection.tsx # Depoimentos
-│   │   │   └── FAQSection.tsx        # Perguntas frequentes
-│   │   ├── ui/                       # 29+ componentes shadcn/ui
-│   │   ├── NavLink.tsx               # Link de navegação
-│   │   └── SplashScreen.tsx          # Splash animado (web)
-│   ├── hooks/
-│   │   ├── useFinancialData.ts   # Transações e metas (localStorage)
-│   │   ├── useTheme.ts           # Dark/light mode toggle
-│   │   ├── use-mobile.tsx        # Detecção de viewport mobile
-│   │   └── use-toast.ts          # Sistema de notificações
-│   ├── pages/
-│   │   ├── AppPage.tsx           # App principal com 5 tabs
-│   │   ├── Index.tsx             # Redirect → Landing
-│   │   ├── LoginPage.tsx         # Tela de login
-│   │   ├── RegisterPage.tsx      # Tela de cadastro
-│   │   ├── TermsPage.tsx         # Termos de Uso (12 seções)
-│   │   ├── PrivacyPage.tsx       # Política de Privacidade (15 seções LGPD)
-│   │   └── NotFound.tsx          # Página 404
-│   ├── services/
-│   │   ├── authService.ts        # Auth, sessão, perfil, entradas fixas
-│   │   ├── chatAIService.ts      # Motor NLP (parsing + geração)
-│   │   ├── reportService.ts      # Exportação CSV e TXT
-│   │   ├── subscriptionService.ts # Planos, limites, trial
-│   │   └── securityService.ts    # Hash, sanitize, rate limiting
-│   ├── types/
-│   │   └── index.ts              # Tipos, constantes, labels
-│   ├── App.tsx                   # Router principal
-│   ├── App.css                   # Estilos globais
-│   ├── index.css                 # Design tokens (light + dark)
-│   └── main.tsx                  # Entry point
-├── capacitor.config.ts           # Config Capacitor (nativo)
-├── tailwind.config.ts            # Config Tailwind + tokens
-├── vite.config.ts                # Config Vite
-├── vitest.config.ts              # Config testes
-├── tsconfig.json                 # Config TypeScript
-└── package.json                  # Dependências e scripts
+src/
+├── contexts/
+│   └── AuthContext.tsx          # Auth state management
+├── components/
+│   ├── CookieConsent.tsx        # LGPD cookie banner
+│   ├── InstallPrompt.tsx        # PWA install banner
+│   ├── MonthlyEvolutionChart.tsx # Recharts area chart
+│   ├── SplashScreen.tsx         # Animated splash
+│   ├── Landing/                 # Landing page sections
+│   └── ui/                      # 29+ shadcn components
+├── hooks/
+│   ├── useSupabaseFinancialData.ts # Cloud data + auto-recurring
+│   ├── useTheme.ts              # Dark mode hook
+│   └── useFinancialData.ts      # Legacy localStorage hook
+├── integrations/
+│   ├── lovable/index.ts         # Google OAuth managed
+│   └── supabase/                # Auto-generated client + types
+├── pages/
+│   ├── AppPage.tsx              # Main app (5 tabs)
+│   ├── LoginPage.tsx            # Email + Google login
+│   ├── RegisterPage.tsx         # Email + Google signup
+│   └── ...
+├── services/
+│   ├── chatAIService.ts         # NLP engine
+│   ├── securityService.ts       # XSS, CSP, sanitization
+│   └── reportService.ts         # CSV/TXT export
+└── types/index.ts               # TypeScript interfaces
 ```
-
----
-
-## 📝 Tipos TypeScript
-
-### Transaction
-```typescript
-interface Transaction {
-  id: string;
-  userId: string;
-  type: 'income' | 'expense';
-  amount: number;
-  category: string;
-  description: string;
-  date: string;
-  paymentMethod: 'pix' | 'pix_parcelado' | 'credito' | 'debito' | 'dinheiro' | 'boleto';
-  installments?: Installment[];
-  parentId?: string;         // Referência à transação pai (parcelamento)
-  totalAmount?: number;      // Valor total do parcelamento
-  isRecurring?: boolean;
-  source?: 'manual' | 'chat';
-  createdAt: string;
-}
-```
-
-### Installment
-```typescript
-interface Installment {
-  number: number;     // Número da parcela (1, 2, 3...)
-  total: number;      // Total de parcelas
-  value: number;      // Valor da parcela
-  dueDate: string;    // Data de vencimento
-  paid: boolean;      // Se já foi paga
-}
-```
-
-### FinancialGoal
-```typescript
-interface FinancialGoal {
-  id: string;
-  userId: string;
-  name: string;
-  targetAmount: number;
-  currentAmount: number;
-  deadline: string;
-  createdAt: string;
-}
-```
-
-### FixedEntry
-```typescript
-interface FixedEntry {
-  id: string;
-  description: string;
-  amount: number;
-  dayOfMonth: number;      // Dia do mês (1-31)
-  category?: string;
-  paymentMethod?: PaymentMethod;
-}
-```
-
-### User
-```typescript
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  password: string;         // Hash SHA-256
-  createdAt: string;
-  fixedIncomes: FixedEntry[];
-  fixedExpenses: FixedEntry[];
-}
-```
-
----
-
-## ⚙️ Serviços (Services)
-
-### `authService.ts`
-| Método | Descrição |
-|--------|-----------|
-| `register(name, email, password)` | Cria conta com hash de senha |
-| `login(email, password)` | Valida credenciais com rate limiting |
-| `logout()` | Remove sessão e token |
-| `getSession()` | Retorna sessão ativa ou null |
-| `getCurrentUser()` | Retorna User completo |
-| `updateUserProfile(name)` | Atualiza nome com sanitização |
-| `updateFixedIncomes(entries)` | Salva receitas fixas |
-| `updateFixedExpenses(entries)` | Salva despesas fixas |
-| `changePassword(current, new)` | Altera senha com validação |
-| `deleteAccount(password)` | Exclui conta e todos os dados |
-
-### `chatAIService.ts`
-| Método | Descrição |
-|--------|-----------|
-| `parseMessage(msg)` | Extrai ParsedTransaction do texto |
-| `createTransactions(parsed, userId)` | Gera Transaction[] (com parcelas) |
-| `generateResponse(parsed, msg)` | Gera resposta da IA formatada |
-
-### `subscriptionService.ts`
-| Método | Descrição |
-|--------|-----------|
-| `getSubscription()` | Retorna assinatura atual |
-| `isPro()` | Verifica se é Pro (inclui admin bypass) |
-| `subscribe(plan)` | Ativa plano com 7 dias trial |
-| `canAddTransaction(count)` | Verifica limite (30/mês free) |
-| `canUseChat(count)` | Verifica limite (5/dia free) |
-| `canExport()` | Só para Pro |
-| `canAddGoal(count)` | Verifica limite (1 free) |
-
-### `securityService.ts`
-| Método | Descrição |
-|--------|-----------|
-| `hashPassword(password)` | SHA-256 via Web Crypto API |
-| `verifyPassword(password, hash)` | Compara hash |
-| `sanitizeInput(input)` | Remove caracteres perigosos (XSS) |
-| `validateEmail(email)` | Regex de formato |
-| `validatePasswordStrength(pw)` | Mín 6 chars, 1 maiúscula, 1 número |
-| `checkLoginAttempts(email)` | Rate limiting (5 tentativas) |
-| `generateId()` | UUID v4 via crypto |
-| `generateSessionToken()` | Token 32 bytes hex |
-
-### `reportService.ts`
-| Método | Descrição |
-|--------|-----------|
-| `exportCSV(transactions)` | Gera e baixa arquivo CSV |
-| `exportReport(transactions, goals)` | Gera relatório TXT completo |
-
----
-
-## 💰 Planos e Limites
-
-| Recurso | Grátis | Pro (R$ 9,90/mês) |
-|---------|--------|-------------------|
-| Transações/mês | 30 | ∞ |
-| Chat IA/dia | 5 | ∞ |
-| Metas financeiras | 1 | ∞ |
-| Exportação CSV/TXT | ❌ | ✅ |
-| Receitas/Despesas fixas | ✅ | ✅ |
-| Dark Mode | ✅ | ✅ |
-| Trial gratuito | — | 7 dias |
-
-**Admin bypass**: O email `joaquimmiguel1200@gmail.com` possui acesso Pro vitalício.
-
----
-
-## 🤝 Contribuição
-
-```bash
-# 1. Fork o repositório
-# 2. Crie uma branch
-git checkout -b feature/nova-funcionalidade
-
-# 3. Commit (conventional commits)
-git commit -m 'feat: adiciona nova funcionalidade'
-
-# 4. Push e abra PR
-git push origin feature/nova-funcionalidade
-```
-
-### Convenções de Commit
-
-| Prefixo | Uso |
-|---------|-----|
-| `feat:` | Nova funcionalidade |
-| `fix:` | Correção de bug |
-| `docs:` | Documentação |
-| `style:` | Formatação (sem lógica) |
-| `refactor:` | Refatoração |
-| `test:` | Testes |
-| `chore:` | Manutenção |
 
 ---
 
 ## 📄 Licença
 
-Projeto privado — Todos os direitos reservados.
-
----
-
-<p align="center">
-  Feito com ❤️ usando <a href="https://lovable.dev">Lovable</a>
-</p>
+© 2026 FinançasIA 2.0 — Gestão Inteligente de Finanças Pessoais
