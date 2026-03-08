@@ -30,7 +30,7 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error('Não foi possível criar a conta. Tente novamente.');
     } else {
       toast.success('Conta criada! Verifique seu email para confirmar.');
       navigate('/login');
