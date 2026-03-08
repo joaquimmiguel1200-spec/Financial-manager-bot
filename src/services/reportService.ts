@@ -1,6 +1,5 @@
 import type { Transaction, FinancialGoal } from '@/types';
 import { PAYMENT_METHOD_LABELS } from '@/types';
-import { authService } from './authService';
 
 export const reportService = {
   exportCSV(transactions: Transaction[]): void {
@@ -27,8 +26,7 @@ export const reportService = {
     URL.revokeObjectURL(url);
   },
 
-  exportReport(transactions: Transaction[], goals: FinancialGoal[]): void {
-    const user = authService.getCurrentUser();
+  exportReport(transactions: Transaction[], goals: FinancialGoal[], userName?: string, userEmail?: string): void {
     const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const now = new Date();
 
@@ -52,8 +50,8 @@ export const reportService = {
     report += '═══════════════════════════════════════════\n';
     report += '        RELATÓRIO FINANCEIRO - FinançasIA 2.0\n';
     report += '═══════════════════════════════════════════\n\n';
-    report += `Usuário: ${user?.name || 'N/A'}\n`;
-    report += `Email: ${user?.email || 'N/A'}\n`;
+    report += `Usuário: ${userName || 'N/A'}\n`;
+    report += `Email: ${userEmail || 'N/A'}\n`;
     report += `Data do relatório: ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')}\n`;
     report += `Total de transações: ${transactions.length}\n\n`;
 
@@ -61,22 +59,6 @@ export const reportService = {
     report += `  Receitas:  ${fmt(totalIncome)}\n`;
     report += `  Despesas:  ${fmt(totalExpense)}\n`;
     report += `  Saldo:     ${fmt(totalIncome - totalExpense)}\n\n`;
-
-    // Fixed incomes/expenses
-    if (user?.fixedIncomes?.length) {
-      report += '── RECEITAS FIXAS ────────────────────────\n';
-      user.fixedIncomes.forEach(fi => {
-        report += `  ${fi.description}: ${fmt(fi.amount)} (dia ${fi.dayOfMonth})\n`;
-      });
-      report += '\n';
-    }
-    if (user?.fixedExpenses?.length) {
-      report += '── DESPESAS FIXAS ────────────────────────\n';
-      user.fixedExpenses.forEach(fe => {
-        report += `  ${fe.description}: ${fmt(fe.amount)} (dia ${fe.dayOfMonth})\n`;
-      });
-      report += '\n';
-    }
 
     report += '── DESPESAS POR CATEGORIA ────────────────\n';
     Object.entries(byCategory).sort((a, b) => b[1] - a[1]).forEach(([cat, val]) => {

@@ -1,83 +1,125 @@
-import type { Subscription, PlanType } from '@/types';
-import { authService } from './authService';
+import type { PlanType } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
-const SUB_KEY = 'financasia_subscription';
-const ADMIN_EMAIL = 'joaquimmiguel1200@gmail.com';
+interface SubscriptionRow {
+  plan: string;
+  is_active: boolean;
+  is_trial_active: boolean;
+  trial_end: string | null;
+  start_date: string;
+}
+
+let cachedSub: SubscriptionRow | null = null;
+let cacheTime = 0;
+const CACHE_TTL = 30_000; // 30s cache
+
+async function fetchSubscription(): Promise<SubscriptionRow | null> {
+  if (cachedSub && Date.now() - cacheTime < CACHE_TTL) return cachedSub;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('plan, is_active, is_trial_active, trial_end, start_date')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  // Server-side trial expiry check
+  if (data.trial_end && new Date(data.trial_end) < new Date() && data.is_trial_active) {
+    await supabase
+      .from('subscriptions')
+      .update({ is_trial_active: false, plan: 'free', is_active: true })
+      .eq('user_id', user.id);
+    data.is_trial_active = false;
+    data.plan = 'free';
+  }
+
+  cachedSub = data;
+  cacheTime = Date.now();
+  return data;
+}
+
+function invalidateCache() {
+  cachedSub = null;
+  cacheTime = 0;
+}
 
 export const subscriptionService = {
-  getSubscription(): Subscription | null {
-    const session = authService.getSession();
-    if (session?.email === ADMIN_EMAIL) {
-      return { plan: 'pro_yearly', startDate: new Date().toISOString(), isTrialActive: false, isActive: true };
-    }
-    try {
-      const data = localStorage.getItem(SUB_KEY);
-      if (!data) return null;
-      const sub: Subscription = JSON.parse(data);
-      if (sub.trialEnd && new Date(sub.trialEnd) < new Date()) {
-        sub.isTrialActive = false;
-        if (sub.plan !== 'free') { sub.plan = 'free'; sub.isActive = false; }
-        localStorage.setItem(SUB_KEY, JSON.stringify(sub));
-      }
-      return sub;
-    } catch { return null; }
+  async getSubscription(): Promise<SubscriptionRow | null> {
+    return fetchSubscription();
   },
 
-  isPro(): boolean {
-    const session = authService.getSession();
-    if (session?.email === ADMIN_EMAIL) return true;
-    const sub = subscriptionService.getSubscription();
+  async isPro(): Promise<boolean> {
+    const sub = await fetchSubscription();
     if (!sub) return false;
-    return sub.plan !== 'free' && sub.isActive;
+    return sub.plan !== 'free' && sub.is_active;
   },
 
-  isTrialActive(): boolean {
-    const sub = subscriptionService.getSubscription();
-    return sub?.isTrialActive ?? false;
+  async isTrialActive(): Promise<boolean> {
+    const sub = await fetchSubscription();
+    return sub?.is_trial_active ?? false;
   },
 
-  getTrialDaysRemaining(): number {
-    const sub = subscriptionService.getSubscription();
-    if (!sub?.trialEnd) return 0;
-    const diff = new Date(sub.trialEnd).getTime() - Date.now();
+  async getTrialDaysRemaining(): Promise<number> {
+    const sub = await fetchSubscription();
+    if (!sub?.trial_end) return 0;
+    const diff = new Date(sub.trial_end).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   },
 
-  subscribe(plan: PlanType): void {
+  async subscribe(plan: PlanType): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + 7);
-    const sub: Subscription = {
-      plan,
-      startDate: new Date().toISOString(),
-      trialEnd: plan !== 'free' ? trialEnd.toISOString() : undefined,
-      isTrialActive: plan !== 'free',
-      isActive: true,
-    };
-    localStorage.setItem(SUB_KEY, JSON.stringify(sub));
+
+    await supabase
+      .from('subscriptions')
+      .upsert({
+        user_id: user.id,
+        plan,
+        start_date: new Date().toISOString(),
+        trial_end: plan !== 'free' ? trialEnd.toISOString() : null,
+        is_trial_active: plan !== 'free',
+        is_active: true,
+      }, { onConflict: 'user_id' });
+
+    invalidateCache();
   },
 
-  cancelSubscription(): void {
-    const sub: Subscription = { plan: 'free', startDate: new Date().toISOString(), isTrialActive: false, isActive: true };
-    localStorage.setItem(SUB_KEY, JSON.stringify(sub));
+  async cancelSubscription(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('subscriptions')
+      .update({ plan: 'free', is_trial_active: false, is_active: true })
+      .eq('user_id', user.id);
+
+    invalidateCache();
   },
 
-  canAddTransaction(currentCount: number): boolean {
-    return subscriptionService.isPro() || currentCount < 30;
+  async canAddTransaction(currentCount: number): Promise<boolean> {
+    return (await subscriptionService.isPro()) || currentCount < 30;
   },
 
-  canUseChat(todayCount: number): boolean {
-    return subscriptionService.isPro() || todayCount < 5;
+  async canUseChat(todayCount: number): Promise<boolean> {
+    return (await subscriptionService.isPro()) || todayCount < 5;
   },
 
-  canExport(): boolean {
+  async canExport(): Promise<boolean> {
     return subscriptionService.isPro();
   },
 
-  canAddGoal(currentCount: number): boolean {
-    return subscriptionService.isPro() || currentCount < 1;
+  async canAddGoal(currentCount: number): Promise<boolean> {
+    return (await subscriptionService.isPro()) || currentCount < 1;
   },
 
-  canUseFixedEntries(): boolean {
+  async canUseFixedEntries(): Promise<boolean> {
     return subscriptionService.isPro();
   },
 

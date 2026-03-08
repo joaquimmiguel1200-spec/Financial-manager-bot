@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseFinancialData } from '@/hooks/useSupabaseFinancialData';
 import { useTheme } from '@/hooks/useTheme';
 import { chatAIService } from '@/services/chatAIService';
-import { subscriptionService } from '@/services/subscriptionService';
 import type { ChatMessage, PaymentMethod } from '@/types';
 import { CATEGORY_ICONS, PAYMENT_METHOD_LABELS } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -560,7 +559,8 @@ function ProfileTab() {
       id: g.id, userId: g.user_id, name: g.name, targetAmount: Number(g.target_amount),
       currentAmount: Number(g.current_amount), deadline: g.deadline, createdAt: g.created_at,
     }));
-    reportService.exportReport(adaptedTxs, adaptedGoals);
+    const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
+    reportService.exportReport(adaptedTxs, adaptedGoals, displayName, user?.email || '');
     toast.success('Relatório exportado com sucesso!');
   };
 
