@@ -14,7 +14,207 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cookie_consent: {
+        Row: {
+          analytics: boolean | null
+          consented_at: string
+          functional: boolean | null
+          id: string
+          ip_hash: string | null
+          marketing: boolean | null
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          analytics?: boolean | null
+          consented_at?: string
+          functional?: boolean | null
+          id?: string
+          ip_hash?: string | null
+          marketing?: boolean | null
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          analytics?: boolean | null
+          consented_at?: string
+          functional?: boolean | null
+          id?: string
+          ip_hash?: string | null
+          marketing?: boolean | null
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      fixed_entries: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          day_of_month: number
+          description: string
+          id: string
+          payment_method: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          day_of_month: number
+          description: string
+          id?: string
+          payment_method?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          day_of_month?: number
+          description?: string
+          id?: string
+          payment_method?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          created_at: string
+          current_amount: number
+          deadline: string
+          id: string
+          name: string
+          target_amount: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_amount?: number
+          deadline: string
+          id?: string
+          name: string
+          target_amount: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_amount?: number
+          deadline?: string
+          id?: string
+          name?: string
+          target_amount?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recurring_log: {
+        Row: {
+          applied_at: string
+          id: string
+          user_id: string
+          year_month: string
+        }
+        Insert: {
+          applied_at?: string
+          id?: string
+          user_id: string
+          year_month: string
+        }
+        Update: {
+          applied_at?: string
+          id?: string
+          user_id?: string
+          year_month?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          installment_number: number | null
+          installment_total: number | null
+          is_recurring: boolean | null
+          parent_id: string | null
+          payment_method: string | null
+          source: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          created_at?: string
+          date?: string
+          description: string
+          id?: string
+          installment_number?: number | null
+          installment_total?: number | null
+          is_recurring?: boolean | null
+          parent_id?: string | null
+          payment_method?: string | null
+          source?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          installment_number?: number | null
+          installment_total?: number | null
+          is_recurring?: boolean | null
+          parent_id?: string | null
+          payment_method?: string | null
+          source?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
