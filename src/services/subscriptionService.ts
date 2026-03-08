@@ -27,12 +27,9 @@ async function fetchSubscription(): Promise<SubscriptionRow | null> {
 
   if (error || !data) return null;
 
-  // Server-side trial expiry check
+  // Trial expiry is checked read-only; no client-side update
   if (data.trial_end && new Date(data.trial_end) < new Date() && data.is_trial_active) {
-    await supabase
-      .from('subscriptions')
-      .update({ is_trial_active: false, plan: 'free', is_active: true })
-      .eq('user_id', user.id);
+    // Mark locally expired but don't update DB from client
     data.is_trial_active = false;
     data.plan = 'free';
   }
@@ -70,37 +67,15 @@ export const subscriptionService = {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   },
 
-  async subscribe(plan: PlanType): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 7);
-
-    await supabase
-      .from('subscriptions')
-      .upsert({
-        user_id: user.id,
-        plan,
-        start_date: new Date().toISOString(),
-        trial_end: plan !== 'free' ? trialEnd.toISOString() : null,
-        is_trial_active: plan !== 'free',
-        is_active: true,
-      }, { onConflict: 'user_id' });
-
-    invalidateCache();
+  async subscribe(_plan: PlanType): Promise<void> {
+    // Plan changes must go through a server-side edge function with payment verification.
+    // This client method is intentionally a no-op to prevent self-upgrade attacks.
+    console.warn('Plan changes require server-side payment verification.');
   },
 
   async cancelSubscription(): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase
-      .from('subscriptions')
-      .update({ plan: 'free', is_trial_active: false, is_active: true })
-      .eq('user_id', user.id);
-
-    invalidateCache();
+    // Cancellation must go through a server-side edge function.
+    console.warn('Cancellation requires server-side processing.');
   },
 
   async canAddTransaction(currentCount: number): Promise<boolean> {
